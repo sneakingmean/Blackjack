@@ -2,7 +2,7 @@ from settings import *
 from custom_timer import Timer
 
 class UI:
-    def __init__(self,display_surface,chip_surfs,players,player_index,table_min,table_max):
+    def __init__(self,display_surface,chip_surfs,players,player_index,table_min,table_max,count_rect):
         self.state = 'off' #determines which ui is shown (off,bet,playing)
         self.display_surface = display_surface
         self.players = players #list of all the players
@@ -19,6 +19,7 @@ class UI:
         self.help_open = False #true if help menu has been clicked and is open
         self.first_mouse = None #record the first mouse click of a player during their move
         self.player_action = None #action the player chose which will be returned to main
+        self.count_rect = count_rect #rect displaying the count
 
         #timer
         self.double_click_timer = Timer(300)
@@ -47,52 +48,53 @@ class UI:
                 mouse = pygame.mouse.get_just_pressed()
                 #if not over the help box
                 if not self.help_rect.collidepoint(mouse_pos):
-                    #l click
-                    if mouse[0] and not (mouse[1] or mouse[2]):
-                        if self.double_click_timer:
-                            if self.first_mouse[0]:
-                                self.player_action = 'double'
-                                self.first_mouse=None
-                                self.double_click_timer.deactivate()
-                            elif self.first_mouse[2]:
+                    if not self.count_rect.collidepoint(mouse_pos):
+                        #l click
+                        if mouse[0] and not (mouse[1] or mouse[2]):
+                            if self.double_click_timer:
+                                if self.first_mouse[0]:
+                                    self.player_action = 'double'
+                                    self.first_mouse=None
+                                    self.double_click_timer.deactivate()
+                                elif self.first_mouse[2]:
+                                    self.player_action = 'split'
+                                    self.first_mouse=None
+                                    self.double_click_timer.deactivate()
+                            else:
+                                self.first_mouse = mouse
+                                self.double_click_timer.activate()
+
+                        #r click
+                        if mouse[2] and not (mouse[0] or mouse[1]):
+                            if self.double_click_timer and self.first_mouse[0]:
                                 self.player_action = 'split'
                                 self.first_mouse=None
                                 self.double_click_timer.deactivate()
-                        else:
-                            self.first_mouse = mouse
-                            self.double_click_timer.activate()
+                            else:
+                                self.first_mouse = mouse
+                                self.double_click_timer.activate()
 
-                    #r click
-                    if mouse[2] and not (mouse[0] or mouse[1]):
-                        if self.double_click_timer and self.first_mouse[0]:
+                        #split
+                        if mouse[0] and mouse[2]:
                             self.player_action = 'split'
+
+                        #surrender
+                        if mouse[1] and not (mouse[0] or mouse[2]):
+                            self.player_action = 'surrender'
+
+                        if self.first_mouse!=None and not self.double_click_timer:
+                            if self.first_mouse[0]:
+                                self.player_action = 'hit'
+                            elif self.first_mouse[2]:
+                                self.player_action = 'stand'
                             self.first_mouse=None
-                            self.double_click_timer.deactivate()
-                        else:
-                            self.first_mouse = mouse
-                            self.double_click_timer.activate()
-
-                    #split
-                    if mouse[0] and mouse[2]:
-                        self.player_action = 'split'
-
-                    #surrender
-                    if mouse[1] and not (mouse[0] or mouse[2]):
-                        self.player_action = 'surrender'
-
-                    if self.first_mouse!=None and not self.double_click_timer:
-                        if self.first_mouse[0]:
-                            self.player_action = 'hit'
-                        elif self.first_mouse[2]:
-                            self.player_action = 'stand'
-                        self.first_mouse=None
                 else:
                     #open help menu
                     if mouse[0]:
                         self.help_open=True
             else:
                 #close help menu
-                if pygame.key.get_just_pressed()[pygame.K_ESCAPE]:
+                if self.close_help_rect.collidepoint(mouse_pos) and pygame.mouse.get_just_pressed()[0]:
                     self.help_open=False
         elif self.state=='insurance':
             if pygame.mouse.get_just_pressed()[0]:
@@ -244,19 +246,15 @@ class UI:
 
     def player_turn_ui(self):
         if not self.help_open:
+            font = pygame.font.Font(None,30)
+
             #small window that will open if pressed for more details on hitting
             self.help_rect = pygame.FRect(WINDOW_WIDTH-100,0,100,100)
             pygame.draw.rect(self.display_surface,COLORS['white'],self.help_rect,0,4)
             pygame.draw.rect(self.display_surface,COLORS['gray'],self.help_rect,4,4)
-            font = pygame.font.Font(None,30)
-
-            #text
             name_surf = font.render('Help',True,'black')
             name_rect = name_surf.get_frect(center = self.help_rect.center)
             self.display_surface.blit(name_surf,name_rect)
-
-            #triangle marking whose turn it is
-
 
         else:
             #controls screen
@@ -272,6 +270,10 @@ class UI:
             mouse_action_surf = font.render('L Click\n\nR Click\n\n2x L Click\n\nL+R Click\n\nScroll CLick',True,'black')
             mouse_action_rect = mouse_action_surf.get_frect(midtop = (WINDOW_WIDTH/2+150,WINDOW_HEIGHT/2-175))
             self.display_surface.blit(mouse_action_surf,mouse_action_rect)
+
+            close_help_surf = font.render('X',True,'black')
+            self.close_help_rect = close_help_surf.get_frect(topright = rect.move(-5,5).topright)
+            self.display_surface.blit(close_help_surf,self.close_help_rect)
 
     def update(self,player_index):
         self.player_index = player_index

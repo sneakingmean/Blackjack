@@ -19,8 +19,7 @@ class Game:
         self.player_index = 0 #index of player who's turn it is
         self.num_bets_placed = 0 #indicates number of players who have bet this round
         self.num_insurance = 0 #indicates number of players who have decided to take or decline insurance
-        #self.import_assets()
-        #self.audio['music'].play(-1)     
+        self.running_count = 0 #running count
         
         #Set the table min and max bets
         self.table_min,self.table_max = 15,500
@@ -43,6 +42,10 @@ class Game:
         self.player_1, self.player_2, self.player_3 = Player(self.name_1,self.money_1),Player(self.name_2,self.money_2),Player(self.name_3,self.money_3)
         self.table = 0 #index of table chose (0-4)
         self.do_sounds = True #play sound effects
+        self.do_count = False #display the outline for the count rect
+        self.show_count = True #display the count in the count rect
+        self.do_total = False #display the current hand total
+        self.count_rect = pygame.FRect(0,0,200,50) #rect for displaying the count
         #will add each player if they are added in init. Money will be changed based on the table chosen
 
         #helps print the cards in the correct spot
@@ -221,7 +224,7 @@ class Game:
         self.display_surface.blit(table_5_name_surf,table_5_name_rect)
 
         #audio
-        self.audio_rect = pygame.FRect(WINDOW_WIDTH/2-475,WINDOW_HEIGHT-120,250,100)
+        self.audio_rect = pygame.FRect(WINDOW_WIDTH/2-475,WINDOW_HEIGHT-120,200,100)
         if self.do_sounds==True:
             pygame.draw.rect(self.display_surface,COLORS['green'],self.audio_rect,0,4)
         else:
@@ -231,9 +234,32 @@ class Game:
         audio_rect =  audio_surf.get_frect(center=self.audio_rect.center)
         self.display_surface.blit( audio_surf, audio_rect)
 
+        #count
+        self.init_count_rect = pygame.FRect(WINDOW_WIDTH/2-250,WINDOW_HEIGHT-120,200,100)
+        if self.do_count==True:
+            pygame.draw.rect(self.display_surface,COLORS['green'],self.init_count_rect,0,4)
+        else:
+            pygame.draw.rect(self.display_surface,COLORS['white'],self.init_count_rect,0,4)
+        pygame.draw.rect(self.display_surface,COLORS['gray'],self.init_count_rect,4,4)
+        init_count_surf = caption_font.render('Count',True,COLORS['black'])
+        init_count_rect =  init_count_surf.get_frect(center=self.init_count_rect.center)
+        self.display_surface.blit( init_count_surf, init_count_rect)
+
+        #totals
+        self.total_rect = pygame.FRect(WINDOW_WIDTH/2-25,WINDOW_HEIGHT-120,200,100)
+        if self.do_total==True:
+            pygame.draw.rect(self.display_surface,COLORS['green'],self.total_rect,0,4)
+        else:
+            pygame.draw.rect(self.display_surface,COLORS['white'],self.total_rect,0,4)
+        pygame.draw.rect(self.display_surface,COLORS['gray'],self.total_rect,4,4)
+        total_surf = caption_font.render('Show Total',True,COLORS['black'])
+        total_rect =  total_surf.get_frect(center=self.total_rect.center)
+        self.display_surface.blit( total_surf, total_rect)
+
+
         #start button
-        self.start_button_rect = pygame.FRect(WINDOW_WIDTH/2+250,WINDOW_HEIGHT/2+250,200,100)
-        pygame.draw.rect(self.display_surface,COLORS['white'],self.start_button_rect,0,4)
+        self.start_button_rect = pygame.FRect(WINDOW_WIDTH/2+250,WINDOW_HEIGHT-120,200,100)
+        pygame.draw.rect(self.display_surface,COLORS['gold'],self.start_button_rect,0,4)
         pygame.draw.rect(self.display_surface,COLORS['gray'],self.start_button_rect,4,4)
         start_button_words_surf = caption_font.render('Click to Start',True,COLORS['black'])
         start_button_words_rect = start_button_words_surf.get_frect(center=self.start_button_rect.center)
@@ -261,6 +287,10 @@ class Game:
 
         elif pygame.mouse.get_just_pressed()[0] and self.audio_rect.collidepoint(mouse_pos): #table 5
             self.do_sounds = not self.do_sounds
+        elif pygame.mouse.get_just_pressed()[0] and self.init_count_rect.collidepoint(mouse_pos): #table 5
+            self.do_count = not self.do_count
+        elif pygame.mouse.get_just_pressed()[0] and self.total_rect.collidepoint(mouse_pos): #table 5
+            self.do_total = not self.do_total
 
         elif pygame.mouse.get_just_pressed()[0] and self.start_button_rect.collidepoint(mouse_pos):
             self.players.clear()
@@ -278,7 +308,7 @@ class Game:
             if self.num_hands_left>0:
                 self.game_state = 'play'
                 self.get_card_positions()
-                self.ui = UI(self.display_surface,self.chip_surfs,self.players,self.player_index,self.table_min,self.table_max)
+                self.ui = UI(self.display_surface,self.chip_surfs,self.players,self.player_index,self.table_min,self.table_max,self.count_rect)
                 self.shoe = Shoe(self.card_surfs,6)
                 self.audio['here_comes_the_money'].stop()
                 self.audio['ambience'].play(-1) if self.do_sounds else False 
@@ -289,11 +319,29 @@ class Game:
         for i,player in enumerate(self.players):
             color = COLORS['white'] if self.player_index==i and not self.player_deal_timer else COLORS['gray']
             for j,hand in enumerate(player.hands.values()):
-                pos = self.placements[i]+self.current_hand_offset(player.num_hands-1,j)+pygame.Vector2(0,5)
+                bet_pos = self.placements[i]+self.current_hand_offset(player.num_hands-1,j)+pygame.Vector2(0,5)
                 bet_shown = hand.bet if not hand.bust else hand.last_bet
-                bet_surf = font.render(f'${bet_shown} {hand.total}',True,color)
-                bet_rect = bet_surf.get_frect(midtop = pos)
+                bet_surf = font.render(f'${bet_shown}',True,color)
+                bet_rect = bet_surf.get_frect(midtop = bet_pos)
                 self.display_surface.blit(bet_surf,bet_rect)
+
+                if self.do_total and hand.total>0 and not self.player_deal_timer:
+                    # total_pos = hand.cards[-1].rect.move(0,-20).midtop
+                    rect = pygame.FRect((hand.cards[-1].rect.move(-15,-23).midtop),(30,23))
+                    pygame.draw.rect(self.display_surface,COLORS['white'],rect,border_radius=3)
+                    pygame.draw.rect(self.display_surface,COLORS['gray'],rect,3,3)
+                    total_surf = font.render(f'{hand.total}',True,COLORS['black'])
+                    total_rect = total_surf.get_frect(center = rect.move(0,2).center)
+                    self.display_surface.blit(total_surf,total_rect)
+        
+        #draw dealer total
+        dealer_rect = pygame.FRect((WINDOW_WIDTH/2-15,0),(30,23))
+        if self.do_total and self.dealer.total>0 and (not self.dealer_deal_timer or not self.flip_timer):
+            pygame.draw.rect(self.display_surface,COLORS['white'],dealer_rect,border_radius=3)
+            pygame.draw.rect(self.display_surface,COLORS['gray'],dealer_rect,3,3)
+            dealer_total_surf = font.render(f'{self.dealer.total}',True,COLORS['black'])
+            dealer_total_rect = dealer_total_surf.get_frect(center = dealer_rect.move(0,2).center)
+            self.display_surface.blit(dealer_total_surf,dealer_total_rect)
 
     def draw_players(self):
         font = pygame.font.Font(None,30)
@@ -328,6 +376,32 @@ class Game:
             
         money_rect = money_surf.get_frect(center = money_pos)
         self.display_surface.blit(money_surf,money_rect)
+        
+    def draw_count(self):
+        font = pygame.font.Font(None,30)
+        #display counts
+        
+        if self.show_count:
+            self.count_rect = self.count_rect = pygame.FRect(0,0,200,50)
+            pygame.draw.rect(self.display_surface,COLORS['white'],self.count_rect,0,4)
+            pygame.draw.rect(self.display_surface,COLORS['gray'],self.count_rect,4,4)
+            running_count_surf = font.render(f'Running Count: {self.running_count}',True,'black')
+            running_count_rect = running_count_surf.get_frect(topleft = self.count_rect.move(10,5).topleft)
+            self.display_surface.blit(running_count_surf,running_count_rect)
+            true_count_surf = font.render(f'True Count: {int(self.running_count/self.shoe.get_num_cards_left())}',True,'black')
+            true_count_rect = true_count_surf.get_frect(bottomleft = self.count_rect.move(10,-5).bottomleft)
+            self.display_surface.blit(true_count_surf,true_count_rect)
+        else:
+            self.count_rect = self.count_rect = pygame.FRect(0,0,20,50)
+            pygame.draw.rect(self.display_surface,COLORS['white'],self.count_rect,0,4)
+            pygame.draw.rect(self.display_surface,COLORS['gray'],self.count_rect,4,4)
+            arrow_surf = font.render('>',True,'black')
+            arrow_rect = arrow_surf.get_frect(center = self.count_rect.center)
+            self.display_surface.blit(arrow_surf,arrow_rect)
+
+    def check_draw_count(self):
+        if pygame.mouse.get_just_pressed()[0] and self.count_rect.collidepoint(pygame.mouse.get_pos()):
+            self.show_count = not self.show_count
 
     def get_card_positions(self):
         #positioning of cards
@@ -619,14 +693,27 @@ class Game:
 #Functions triggered by timers
     def add_card(self):
         self.card_sprites.add(self.current_card)
+        if self.current_card.get_value()==1 or self.current_card.get_value()==10:
+            self.running_count -=1
+        elif self.current_card.get_value()<7:
+            self.running_count+=1
         if self.do_sounds: self.audio['deal'].play()
 
     def add_dealer_card(self):
         self.dealer_card_sprites.add(self.current_card)
+        if self.current_card.face_up:
+            if self.current_card.get_value()==1 or self.current_card.get_value()==10:
+                self.running_count -=1
+            elif self.current_card.get_value()<7:
+                self.running_count+=1
         if self.do_sounds: self.audio['deal'].play()
 
     def flip_card(self):
         self.dealer.cards[0].flip()
+        if self.dealer.cards[0].get_value()==1 or self.dealer.cards[0].get_value()==10:
+            self.running_count -=1
+        elif self.dealer.cards[0].get_value()<7:
+            self.running_count+=1
         if self.do_sounds: self.audio['deal'].play()
 
     def change_player_index(self):
@@ -656,6 +743,8 @@ class Game:
                 self.evaluate() #evaluate which hands win and pay out bets
 
                 #draw
+                if self.do_count: self.draw_count()
+                self.check_draw_count()
                 self.draw_players()
                 self.draw_current_bets()
                 self.card_sprites.draw(self.display_surface)
@@ -665,7 +754,6 @@ class Game:
                 self.ui.update(self.player_index)
                 for timer in self.timers:
                     timer.update()
-                print(self.num_hands_left)
             elif self.game_state == 'init':
                 self.draw_initializer()
                 self.check_initializer()

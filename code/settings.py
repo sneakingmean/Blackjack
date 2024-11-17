@@ -11,5 +11,6 @@ COLORS = {
     'gray': 'gray',
     'white': '#ffffff',
     'dark_gray': '#001400',
-    'green': 'green'
+    'green': 'green',
+    'gold':'#Ffd700'
 }
