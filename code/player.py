@@ -54,7 +54,6 @@ class Player():
 
     #Resets the players hand
     def reset(self):
-        self.money = int(self.money)
         self.hands.clear()
         self.hand = 0 
         self.num_hands = 0 

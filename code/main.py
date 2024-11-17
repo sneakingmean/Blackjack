@@ -336,10 +336,16 @@ class Game:
         
         #draw dealer total
         dealer_rect = pygame.FRect((WINDOW_WIDTH/2-15,0),(30,23))
-        if self.do_total and self.dealer.total>0 and (not self.dealer_deal_timer or not self.flip_timer):
+        if self.do_total and self.dealer.total>0 and (not self.dealer_deal_timer and not self.flip_timer):
             pygame.draw.rect(self.display_surface,COLORS['white'],dealer_rect,border_radius=3)
             pygame.draw.rect(self.display_surface,COLORS['gray'],dealer_rect,3,3)
-            dealer_total_surf = font.render(f'{self.dealer.total}',True,COLORS['black'])
+            if self.dealer.cards[0].face_up: shown_total = self.dealer.total
+            else:
+                if len(self.dealer.cards)==2: 
+                    if self.dealer.cards[1].get_value()==1: shown_total=11
+                    else: shown_total=self.dealer.cards[1].get_value()
+                else: shown_total=0
+            dealer_total_surf = font.render(f'{shown_total}',True,COLORS['black'])
             dealer_total_rect = dealer_total_surf.get_frect(center = dealer_rect.move(0,2).center)
             self.display_surface.blit(dealer_total_surf,dealer_total_rect)
 
@@ -596,7 +602,7 @@ class Game:
 
                                             else:pass
                                         case 'surrender': #can't surrender after split
-                                            if not self.players[self.player_index].num_hands>1:
+                                            if not self.players[self.player_index].num_hands>1 and current_hand.get_len()==2:
                                                 self.players[self.player_index].money += current_hand.bet/2
                                                 self.current_result = -current_hand.bet/2
                                                 self.result_timer.activate() #display result immediately
