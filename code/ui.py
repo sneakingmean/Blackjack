@@ -1,6 +1,9 @@
 from settings import *
 from custom_timer import Timer
 
+# invalid_move = pygame.mixer.Sound(join('audio','invalid_move.ogg'))
+# invalid_move.set_volume(.1)
+
 class UI:
     def __init__(self,display_surface,chip_surfs,players,player_index,table_min,table_max,count_rect):
         self.state = 'off' #determines which ui is shown (off,bet,playing)
@@ -14,6 +17,7 @@ class UI:
         self.chip_values = [1,2.5,5,10,25,100,500,1000] #ordered list used for getting the value of a chip from the surface that was clicked on
         self.table_min = table_min
         self.table_max = table_max
+        self.bet_try = None #if an invalid bet is attempted, will turn false, then reset after 1 frame. Will turn true if valid bet is placed
 
         #player turn ui
         self.help_open = False #true if help menu has been clicked and is open
@@ -41,8 +45,11 @@ class UI:
 
             if pygame.key.get_just_pressed()[pygame.K_SPACE] or pygame.mouse.get_just_pressed()[2]:
                 if self.try_bet(self.bet):
+                    self.bet_try=True
                     self.bet = 0
                     self.state='off'
+                else: 
+                    self.bet_try = False
         elif self.state == 'player_turn':
             if not self.help_open:
                 mouse = pygame.mouse.get_just_pressed()

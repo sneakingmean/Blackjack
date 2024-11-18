@@ -100,7 +100,7 @@ class Shoe():
     #Initializes a shoe with a num_decks number of decks
     def __init__(self,surfs,num_decks):
         self.shoe = []
-        self.cut_card = num_decks*13 #position of cut card from the bottom
+        self.cut_card = max(num_decks*13,40) #position of cut card from the bottom
         self.surfs = surfs
         for i in range(num_decks):
             for card in surfs.keys():

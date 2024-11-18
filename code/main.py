@@ -68,14 +68,16 @@ class Game:
         self.flip_timer = Timer(delay,func=self.flip_card)
         self.result_timer = Timer(1200,func=self.change_player_index)
         self.bust_sounds_timer = Timer(delay,func=self.audio['bust'].play)
+        self.shuffle_timer = Timer(1200)
 
-        self.timers = [self.player_deal_timer,self.dealer_deal_timer,self.stage_change_timer,self.flip_timer,self.result_timer,self.bust_sounds_timer]
+        self.timers = [self.player_deal_timer,self.dealer_deal_timer,self.stage_change_timer,self.flip_timer,self.result_timer,self.bust_sounds_timer,self.shuffle_timer]
 
         self.audio['here_comes_the_money'].play(-1)
 
     def import_assets(self):
         self.card_surfs = card_importer('images','top_down','cards',color='blue')
         self.chip_surfs = chip_importer('images','top_down','chips.png')
+        self.sapporo = pygame.image.load('images','sapporo.jpg').convert_alpha()
         #table graphics
         self.table_graphic_surf = pygame.image.load(join('images','top_down','table_graphic.jpg'))
         self.table_graphic_rect = self.table_graphic_surf.get_frect(center = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2-100))
@@ -84,8 +86,10 @@ class Game:
         self.start_screen_rect = self.table_graphic_surf.get_frect(topleft = (0,0))
 
         self.audio = audio_importer('audio')
+        #volumes are automatically set to .2
         self.audio['ambience'].set_volume(.1)
         self.audio['stand'].set_volume(.15)
+        self.audio['shuffle'].set_volume(.4)
 
     def draw_start_screen(self):
         #background
@@ -256,6 +260,7 @@ class Game:
         total_rect =  total_surf.get_frect(center=self.total_rect.center)
         self.display_surface.blit( total_surf, total_rect)
 
+        #sapporo
 
         #start button
         self.start_button_rect = pygame.FRect(WINDOW_WIDTH/2+250,WINDOW_HEIGHT-120,200,100)
@@ -309,7 +314,7 @@ class Game:
                 self.game_state = 'play'
                 self.get_card_positions()
                 self.ui = UI(self.display_surface,self.chip_surfs,self.players,self.player_index,self.table_min,self.table_max,self.count_rect)
-                self.shoe = Shoe(self.card_surfs,6)
+                self.shoe = Shoe(self.card_surfs,1)
                 self.audio['here_comes_the_money'].stop()
                 self.audio['ambience'].play(-1) if self.do_sounds else False 
 
@@ -489,45 +494,174 @@ class Game:
                     self.player_index+=1
                         
     def bet(self):
-        if self.num_bets_placed != len(self.players):
-            if not self.players[self.player_index].bet_placed:
-                self.ui.state = 'bet'
-            else:
-                self.num_bets_placed += 1
-                self.player_index = (self.player_index+1)%len(self.players)
+        if not self.shuffle_timer and not self.result_timer:
+            if self.num_bets_placed != len(self.players):
+                if not self.players[self.player_index].bet_placed:
+                    self.ui.state = 'bet'
+                    if self.ui.bet_try==False: self.audio['invalid_move'].play()
+                    self.ui.bet_try = None
+                else:
+                    self.audio['bet'].play()
+                    self.num_bets_placed += 1
+                    self.player_index = (self.player_index+1)%len(self.players)
 
-        elif self.stage=='bet': self.stage = 'deal' #move onto the deal when all bets are placed
+            elif self.stage=='bet': self.stage = 'deal' #move onto the deal when all bets are place
+        else: 
+            if self.shoe.get_num_cards_left()<self.shoe.cut_card:
+                self.shoe.reset(self.card_surfs,1)
+                self.audio['shuffle'].play()
+            rect = pygame.FRect(WINDOW_WIDTH/2-150,WINDOW_HEIGHT/2-50,300,100)
+            pygame.draw.rect(self.display_surface,COLORS['white'],rect,0,4)
+            pygame.draw.rect(self.display_surface,COLORS['gray'],rect,4,4)
+            font = pygame.font.Font(None,50)
+            surf = font.render('Shuffling Shoe',True,'black')
+            rect = surf.get_frect(center = rect.center)
+            self.display_surface.blit(surf,rect)
             
-    def deal_card(self):
-        if not self.result_timer: #for when blackjacks are checked and results put up
-            match self.stage:
-                case 'deal':
-                    if not self.player_deal_timer and not self.dealer_deal_timer:
-                        if self.player_index < len(self.players):
-                            if self.players[self.player_index].hands[self.players[self.player_index].hand].bet>0:
-                                current_hand = self.players[self.player_index].hands[self.players[self.player_index].hand]
-                                if not current_hand.get_len()==2:
+    def deal(self):
+        if not self.player_deal_timer and not self.dealer_deal_timer:
+            if self.player_index < len(self.players):
+                if self.players[self.player_index].hands[self.players[self.player_index].hand].bet>0:
+                    current_hand = self.players[self.player_index].hands[self.players[self.player_index].hand]
+                    if not current_hand.get_len()==2:
+                        self.current_card = self.shoe.deal_card()
+                        pos = self.placements[self.player_index]+current_hand.get_len()*self.offset
+                        self.current_card.assign_rect(pos)
+                        current_hand.add_card(self.current_card)
+                        self.player_deal_timer.activate()
+                self.player_index += 1
+            else:
+                self.current_card = self.shoe.deal_card()
+                pos = self.dealer_pos+len(self.dealer.cards)*pygame.Vector2(self.card_width,0)
+                self.current_card.assign_rect(pos)
+                self.dealer.add_card(self.current_card)
+                self.dealer_deal_timer.activate()
+                if len(self.dealer.cards) == 1: self.current_card.flip()    
+                elif len(self.dealer.cards) == 2:
+                    if self.dealer.cards[1].get_value() == 1: #check for dealer upcard being an ace to offer insurance
+                        self.insurance = True
+                        self.check_dealer_blackjack(10)
+                    elif self.dealer.cards[1].get_value() == 10: #check for dealer upcard being a 10 to check a blackjack
+                        self.check_dealer_blackjack(1)
+                    self.stage = 'checking_blackjacks' #check if any player has blackjack
+                self.player_index=0
+
+    def player_turn(self):
+        if not (self.stage_change_timer or self.result_timer) and not self.player_index >= len(self.players): #make sure it's not dealer's turn
+            if self.players[self.player_index].hands[self.players[self.player_index].hand].bet>0: #make sure the player has bet this hand
+                current_hand = self.players[self.player_index].hands[self.players[self.player_index].hand]
+                if current_hand.get_len()==1 and not self.player_deal_timer: #for after a split, automatically deal another card
+                    self.current_card = self.shoe.deal_card()
+                    pos = self.placements[self.player_index]+current_hand.get_len()*self.offset+self.current_hand_offset(self.players[self.player_index].num_hands-1,self.players[self.player_index].hand)
+                    self.current_card.assign_rect(pos)
+                    current_hand.add_card(self.current_card)
+                    self.player_deal_timer.activate(True)
+                    if current_hand.cards[0].get_value()==1:
+                        if self.players[self.player_index].hand == self.players[self.player_index].num_hands-1: self.player_index += 1 
+                        else: self.players[self.player_index].hand+=1
+                else:
+                    if not current_hand.bust and current_hand.total!=21: #check player is bust and doesn't have a 21
+                        self.ui.state = 'player_turn'
+                        player_action = self.ui.player_action
+                        match player_action:
+                            case None: pass
+                            case 'hit':
+                                self.current_card = self.shoe.deal_card()
+                                pos = self.placements[self.player_index]+current_hand.get_len()*self.offset+self.current_hand_offset(self.players[self.player_index].num_hands-1,self.players[self.player_index].hand)
+                                self.current_card.assign_rect(pos)
+                                current_hand.add_card(self.current_card)
+                                self.player_deal_timer.activate()
+                            case 'stand':
+                                if self.do_sounds: self.audio['stand'].play()
+                                if self.players[self.player_index].hand == self.players[self.player_index].num_hands-1: self.player_index += 1 
+                                else: self.players[self.player_index].hand+=1
+                            case 'double':
+                                if self.players[self.player_index].money > 0 and current_hand.get_len()==2:
+                                    #alter bet
+                                    double_amount = 0
+                                    if self.players[self.player_index].money < current_hand.bet: double_amount = self.players[self.player_index]._money
+                                    else: double_amount = current_hand.bet
+                                    current_hand.bet += double_amount
+                                    self.players[self.player_index].money-=double_amount
+
                                     self.current_card = self.shoe.deal_card()
-                                    pos = self.placements[self.player_index]+current_hand.get_len()*self.offset
+                                    self.current_card.rotate()
+                                    pos = self.placements[self.player_index]+current_hand.get_len()*self.offset+self.current_hand_offset(self.players[self.player_index].num_hands-1,self.players[self.player_index].hand)
                                     self.current_card.assign_rect(pos)
                                     current_hand.add_card(self.current_card)
                                     self.player_deal_timer.activate()
-                            self.player_index += 1
-                        else:
-                            self.current_card = self.shoe.deal_card()
-                            pos = self.dealer_pos+len(self.dealer.cards)*pygame.Vector2(self.card_width,0)
-                            self.current_card.assign_rect(pos)
-                            self.dealer.add_card(self.current_card)
-                            self.dealer_deal_timer.activate()
-                            if len(self.dealer.cards) == 1: self.current_card.flip()    
-                            elif len(self.dealer.cards) == 2:
-                                if self.dealer.cards[1].get_value() == 1: #check for dealer upcard being an ace to offer insurance
-                                    self.insurance = True
-                                    self.check_dealer_blackjack(10)
-                                elif self.dealer.cards[1].get_value() == 10: #check for dealer upcard being a 10 to check a blackjack
-                                    self.check_dealer_blackjack(1)
-                                self.stage = 'checking_blackjacks' #check if any player has blackjack
-                            self.player_index=0
+                                    
+                                    if self.players[self.player_index].hand == self.players[self.player_index].num_hands-1: self.player_index += 1 
+                                    else: self.players[self.player_index].hand+=1
+                                else: self.audio['invalid_move'].play()
+                            case 'split':                 #check that player has enough money to split                    #check the player has only 2 cards                   #check that the cards have the same value                 #only allow 3 splits
+                                if self.players[self.player_index].money >= self.players[self.player_index].current_bet  and current_hand.get_len()==2 and current_hand.cards[0].get_value() == current_hand.cards[1].get_value() and self.players[self.player_index].num_hands<4:
+                                    card = current_hand.remove_card()
+                                    self.players[self.player_index].add_card(card,self.players[self.player_index].num_hands)
+                                    self.players[self.player_index].money -= current_hand.bet
+                                    self.num_hands_left+=1
+
+                                    #adjust placement of the hands and add money
+                                    for i,hand in enumerate(self.players[self.player_index].hands.values()):
+                                        for j,card in enumerate(hand.cards):    
+                                            card.rect.midbottom = self.placements[self.player_index]+j*self.offset+self.current_hand_offset(self.players[self.player_index].num_hands-1,i)
+                                        hand.bet = current_hand.bet
+
+                                else: self.audio['invalid_move'].play()
+                            case 'surrender': #can't surrender after split
+                                if not self.players[self.player_index].num_hands>1 and current_hand.get_len()==2:
+                                    self.players[self.player_index].money += current_hand.bet/2
+                                    self.current_result = -current_hand.bet/2
+                                    self.result_timer.activate() #display result immediately
+                                    current_hand.bet = 0
+                                    current_hand.reset() #avoid the result graphic showing up at the end
+                                    self.num_hands_left-=1
+                                    if self.do_sounds: self.audio['surrender'].play()
+                                else: self.audio['invalid_move'].play()
+                        if current_hand.bust:
+                            current_hand.bet = 0
+                            self.num_hands_left-=1
+                            if self.do_sounds: self.bust_sounds_timer.activate()
+                    else:
+                        if self.players[self.player_index].hand == self.players[self.player_index].num_hands-1: self.player_index += 1
+                        else: self.players[self.player_index].hand+=1
+            else:
+                if self.players[self.player_index].hand == self.players[self.player_index].num_hands-1: self.player_index += 1
+                else: self.players[self.player_index].hand+=1
+        else:
+            if self.player_index >= len(self.players):
+                self.player_index-=1 #start at the left most player when paying out bets
+                self.stage = 'dealer_turn'
+                for player in self.players: player.hand = 0 #reset hand so that on evaluate we can compare hands to the dealer in the right order
+                self.stage_change_timer.activate()
+    
+    def dealer_turn(self):
+        if not self.stage_change_timer:
+            if not self.flip_timer and len(self.dealer.cards) == 2 and not self.dealer.cards[0].face_up:
+                self.flip_timer.activate()
+
+            if not self.flip_timer and not self.dealer_deal_timer:
+                if self.num_hands_left>0:
+                    if self.dealer.total>=17: 
+                        self.stage = 'evaluate'
+                        self.stage_change_timer.activate()
+                    else:
+                        self.current_card = self.shoe.deal_card()
+                        pos = self.dealer_pos+len(self.dealer.cards)*pygame.Vector2(self.card_width,0)
+                        self.current_card.assign_rect(pos)
+                        self.dealer.add_card(self.current_card)
+                        self.dealer_deal_timer.activate()
+                else:
+                    self.stage = 'evaluate'
+                    self.stage_change_timer.activate()
+
+    def get_stage(self):
+        if not self.result_timer: #for when blackjacks are checked and results put up
+            match self.stage:
+                case 'bet':
+                    self.bet()
+                case 'deal':
+                    self.deal()
                 case 'insurance':
                     self.offer_insurance()
                 case 'dealer_blackjack':
@@ -541,131 +675,30 @@ class Game:
                         elif self.dealer_blackjack: self.stage = 'dealer_blackjack'
                         else: self.check_player_blackjacks()                    
                 case 'player_turn': #for when players get to act after intitial deal
-                    if not (self.stage_change_timer or self.result_timer) and not self.player_index >= len(self.players): #make sure it's not dealer's turn
-                        if self.players[self.player_index].hands[self.players[self.player_index].hand].bet>0: #make sure the player has bet this hand
-                            current_hand = self.players[self.player_index].hands[self.players[self.player_index].hand]
-                            if current_hand.get_len()==1 and not self.player_deal_timer: #for after a split, automatically deal another card
-                                self.current_card = self.shoe.deal_card()
-                                pos = self.placements[self.player_index]+current_hand.get_len()*self.offset+self.current_hand_offset(self.players[self.player_index].num_hands-1,self.players[self.player_index].hand)
-                                self.current_card.assign_rect(pos)
-                                current_hand.add_card(self.current_card)
-                                self.player_deal_timer.activate(True)
-                                if current_hand.cards[0].get_value()==1:
-                                    if self.players[self.player_index].hand == self.players[self.player_index].num_hands-1: self.player_index += 1 
-                                    else: self.players[self.player_index].hand+=1
-                            else:
-                                if not current_hand.bust and current_hand.total!=21: #check player is bust and doesn't have a 21
-                                    self.ui.state = 'player_turn'
-                                    player_action = self.ui.player_action
-                                    match player_action:
-                                        case None: pass
-                                        case 'hit':
-                                            self.current_card = self.shoe.deal_card()
-                                            pos = self.placements[self.player_index]+current_hand.get_len()*self.offset+self.current_hand_offset(self.players[self.player_index].num_hands-1,self.players[self.player_index].hand)
-                                            self.current_card.assign_rect(pos)
-                                            current_hand.add_card(self.current_card)
-                                            self.player_deal_timer.activate()
-                                        case 'stand':
-                                            if self.do_sounds: self.audio['stand'].play()
-                                            if self.players[self.player_index].hand == self.players[self.player_index].num_hands-1: self.player_index += 1 
-                                            else: self.players[self.player_index].hand+=1
-                                        case 'double':
-                                            if self.players[self.player_index].money > 0 and current_hand.get_len()==2:
-                                                self.current_card = self.shoe.deal_card()
-                                                self.current_card.rotate()
-                                                pos = self.placements[self.player_index]+current_hand.get_len()*self.offset+self.current_hand_offset(self.players[self.player_index].num_hands-1,self.players[self.player_index].hand)
-                                                self.current_card.assign_rect(pos)
-                                                current_hand.add_card(self.current_card)
-                                                self.player_deal_timer.activate()
-                                                #alter bet
-                                                double_amount = 0
-                                                if self.players[self.player_index].money < current_hand.bet: double_amount = self.players[self.player_index]._money
-                                                else: double_amount = current_hand.bet
-                                                current_hand.bet += double_amount
-                                                self.players[self.player_index].money-=double_amount
-
-                                                if self.players[self.player_index].hand == self.players[self.player_index].num_hands-1: self.player_index += 1 
-                                                else: self.players[self.player_index].hand+=1
-                                            else:pass
-                                        case 'split':                 #check that player has enough money to split                    #check the player has only 2 cards                   #check that the cards have the same value                 #only allow 3 splits
-                                            if self.players[self.player_index].money >= self.players[self.player_index].current_bet  and current_hand.get_len()==2 and current_hand.cards[0].get_value() == current_hand.cards[1].get_value() and self.players[self.player_index].num_hands<5:
-                                                card = current_hand.remove_card()
-                                                self.players[self.player_index].add_card(card,self.players[self.player_index].num_hands)
-                                                self.players[self.player_index].money -= current_hand.bet
-                                                self.num_hands_left+=1
-
-                                                #adjust placement of the hands and add money
-                                                for i,hand in enumerate(self.players[self.player_index].hands.values()):
-                                                    for j,card in enumerate(hand.cards):    
-                                                        card.rect.midbottom = self.placements[self.player_index]+j*self.offset+self.current_hand_offset(self.players[self.player_index].num_hands-1,i)
-                                                    hand.bet = current_hand.bet
-
-                                            else:pass
-                                        case 'surrender': #can't surrender after split
-                                            if not self.players[self.player_index].num_hands>1 and current_hand.get_len()==2:
-                                                self.players[self.player_index].money += current_hand.bet/2
-                                                self.current_result = -current_hand.bet/2
-                                                self.result_timer.activate() #display result immediately
-                                                current_hand.bet = 0
-                                                current_hand.reset() #avoid the result graphic showing up at the end
-                                                self.num_hands_left-=1
-                                                if self.do_sounds: self.audio['surrender'].play()
-                                    if current_hand.bust:
-                                        current_hand.bet = 0
-                                        self.num_hands_left-=1
-                                        if self.do_sounds: self.bust_sounds_timer.activate()
-                                else:
-                                    if self.players[self.player_index].hand == self.players[self.player_index].num_hands-1: self.player_index += 1
-                                    else: self.players[self.player_index].hand+=1
-                        else:
-                            if self.players[self.player_index].hand == self.players[self.player_index].num_hands-1: self.player_index += 1
-                            else: self.players[self.player_index].hand+=1
-                    else:
-                        if self.player_index >= len(self.players):
-                            self.player_index-=1 #start at the left most player when paying out bets
-                            self.stage = 'dealer_turn'
-                            for player in self.players: player.hand = 0 #reset hand so that on evaluate we can compare hands to the dealer in the right order
-                            self.stage_change_timer.activate()
+                    self.player_turn()
                 case 'dealer_turn': #for when the dealer has to act after the initial deal
-                    if not self.stage_change_timer:
-                        if not self.flip_timer and len(self.dealer.cards) == 2 and not self.dealer.cards[0].face_up:
-                            self.flip_timer.activate()
-
-                        if not self.flip_timer and not self.dealer_deal_timer:
-                            if self.num_hands_left>0:
-                                if self.dealer.total>=17: 
-                                    self.stage = 'evaluate'
-                                    self.stage_change_timer.activate()
-                                else:
-                                    self.current_card = self.shoe.deal_card()
-                                    pos = self.dealer_pos+len(self.dealer.cards)*pygame.Vector2(self.card_width,0)
-                                    self.current_card.assign_rect(pos)
-                                    self.dealer.add_card(self.current_card)
-                                    self.dealer_deal_timer.activate()
-                            else:
-                                self.stage = 'evaluate'
-                                self.stage_change_timer.activate()
+                    self.dealer_turn()
+                case 'evaluate':self.evaluate()
 
     def evaluate(self):
         if self.stage == 'evaluate':
             if not self.result_timer and not self.stage_change_timer:
-                current_hand = self.players[self.player_index].hands[self.players[self.player_index].hand]
-                if current_hand.get_len()>0:
-                    if (self.dealer.total < current_hand.total or self.dealer.bust) and not current_hand.bust:
-                        self.current_result = current_hand.bet
-                        self.players[self.player_index].money += 2*current_hand.bet
-                    elif self.dealer.total == current_hand.total and not current_hand.bust:
-                        self.current_result = 0
-                        self.players[self.player_index].money += current_hand.bet
-                    else:
-                        self.current_result = min(-current_hand.bet,-current_hand.last_bet)
-                    current_hand.bet = 0
-                    self.result_timer.activate()
+                if self.player_index<0: self.reset()
                 else:
-                    self.change_player_index()
-
-                if self.player_index<0: 
-                    self.reset()
+                    current_hand = self.players[self.player_index].hands[self.players[self.player_index].hand]
+                    if current_hand.get_len()>0:
+                        if (self.dealer.total < current_hand.total or self.dealer.bust) and not current_hand.bust:
+                            self.current_result = current_hand.bet
+                            self.players[self.player_index].money += 2*current_hand.bet
+                        elif self.dealer.total == current_hand.total and not current_hand.bust:
+                            self.current_result = 0
+                            self.players[self.player_index].money += current_hand.bet
+                        else:
+                            self.current_result = min(-current_hand.bet,-current_hand.last_bet)
+                        current_hand.bet = 0
+                        self.result_timer.activate()
+                    else:
+                        self.change_player_index()
 
     def reset(self):
         #reset stage variables
@@ -674,10 +707,9 @@ class Game:
         self.player_index = 0
         self.dealer_blackjack = False
 
-        #reset shoe if needed
+        #activate shuffle timer
         if self.shoe.get_num_cards_left()<self.shoe.cut_card:
-            print('shuffling shoe')
-            self.shoe.reset(self.card_surfs,6)
+            self.shuffle_timer.activate()
         
         #clear sprite groups
         for sprite in self.card_sprites:
@@ -744,9 +776,7 @@ class Game:
             if self.game_state == 'play':
                 self.display_surface.fill(COLORS['table'])
                 self.display_surface.blit(self.table_graphic_surf,self.table_graphic_rect)
-                self.bet() #takes bets
-                self.deal_card() #deals out the game, player and dealer turns
-                self.evaluate() #evaluate which hands win and pay out bets
+                self.get_stage() #calls appropriate functions based on self.stage
 
                 #draw
                 if self.do_count: self.draw_count()
