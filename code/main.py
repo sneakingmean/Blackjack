@@ -360,7 +360,7 @@ class Game:
                     pygame.draw.rect(self.display_surface,COLORS['white'],rect,border_radius=3)
                     pygame.draw.rect(self.display_surface,COLORS['gray'],rect,3,3)
                     total_surf = font.render(f'{hand.total}',True,COLORS['black'])
-                    total_rect = total_surf.get_frect(center = rect.move(0,2).center)
+                    total_rect = total_surf.get_frect(center = rect.center)
                     self.display_surface.blit(total_surf,total_rect)
         
         #draw dealer total
@@ -375,7 +375,7 @@ class Game:
                     else: shown_total=self.dealer.cards[1].get_value()
                 else: shown_total=0
             dealer_total_surf = font.render(f'{shown_total}',True,COLORS['black'])
-            dealer_total_rect = dealer_total_surf.get_frect(center = dealer_rect.move(0,2).center)
+            dealer_total_rect = dealer_total_surf.get_frect(center = dealer_rect.center)
             self.display_surface.blit(dealer_total_surf,dealer_total_rect)
 
     def draw_players(self):
@@ -421,10 +421,11 @@ class Game:
             pygame.draw.rect(self.display_surface,COLORS['white'],self.count_rect,0,4)
             pygame.draw.rect(self.display_surface,COLORS['gray'],self.count_rect,4,4)
             running_count_surf = font.render(f'Running Count: {self.running_count}',True,'black')
-            running_count_rect = running_count_surf.get_frect(topleft = self.count_rect.move(10,5).topleft)
+            running_count_rect = running_count_surf.get_frect(topleft = self.count_rect.move(10,0).topleft)
             self.display_surface.blit(running_count_surf,running_count_rect)
-            true_count_surf = font.render(f'True Count: {int(self.running_count/self.shoe.get_num_cards_left())}',True,'black')
-            true_count_rect = true_count_surf.get_frect(bottomleft = self.count_rect.move(10,-5).bottomleft)
+            true_count_surf = font.render(f'True Count: {max(int(self.running_count/(self.shoe.get_num_cards_left()/52)),0)}',True,'black')
+            print(max(int(self.running_count/self.shoe.get_num_cards_left()/52),0))
+            true_count_rect = true_count_surf.get_frect(bottomleft = self.count_rect.move(10,0).bottomleft)
             self.display_surface.blit(true_count_surf,true_count_rect)
         else:
             self.count_rect = self.count_rect = pygame.FRect(0,0,20,50)
@@ -479,6 +480,7 @@ class Game:
                 self.player_index = (self.player_index+1)%len(self.players)
 
         elif self.stage=='insurance': 
+            self.num_insurance = 0
             self.insurance = False
             self.stage = 'checking_blackjacks' #move onto the deal when all bets are placed
 

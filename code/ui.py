@@ -252,7 +252,7 @@ class UI:
         rect = pygame.FRect(WINDOW_WIDTH/2-150,WINDOW_HEIGHT/2-75,300,150)
         pygame.draw.rect(self.display_surface,COLORS['white'],rect,0,4)
         pygame.draw.rect(self.display_surface,COLORS['gray'],rect,4,4)
-        font = pygame.font.Font(FONT_FILE,40)
+        font = pygame.font.Font(FONT_FILE,30)
 
         #Player name
         name_pos = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2-50)
@@ -267,17 +267,23 @@ class UI:
         self.display_surface.blit(insurance_surf,insurance_rect)
 
         #yes
-        yes_pos = (WINDOW_WIDTH/2-50,WINDOW_HEIGHT/2+50)
+        yes_pos = (WINDOW_WIDTH/2-50,WINDOW_HEIGHT/2+45)
         yes_surf = font.render('Yes',True,'black')
         yes_rect = yes_surf.get_frect(center = yes_pos)
         self.yes_rect_hitbox = yes_rect.scale_by(1.1)
+        self.yes_rect_hitbox.width*=1.5
+        self.yes_rect_hitbox.center = yes_pos
+        yes_rect.center = yes_pos
         self.display_surface.blit(yes_surf,yes_rect)
 
         #no
-        no_pos = (WINDOW_WIDTH/2+50,WINDOW_HEIGHT/2+50)
+        no_pos = (WINDOW_WIDTH/2+50,WINDOW_HEIGHT/2+45)
         no_surf = font.render('No',True,'black')
         no_rect = no_surf.get_frect(center = no_pos)
         self.no_rect_hitbox = no_rect.scale_by(1.1)
+        self.no_rect_hitbox.width*=1.5
+        self.no_rect_hitbox.center = no_pos
+        no_rect.center = no_pos
         self.display_surface.blit(no_surf,no_rect)
 
         pygame.draw.rect(self.display_surface,COLORS['green'],self.yes_rect_hitbox,4,4)
