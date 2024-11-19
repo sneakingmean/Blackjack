@@ -8,7 +8,7 @@ WINDOW_WIDTH, WINDOW_HEIGHT = 1280,720
 COLORS = {
     'table_1': '#007639',
     'table_2': '#2F0C28',
-    'table_3': '#0B2020',
+    'table_3': '#0e1665',
     'table_4': '#330413',
     'table_5': '#000000',
     'black': '#000000',

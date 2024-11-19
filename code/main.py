@@ -5,7 +5,6 @@ from cards import *
 from ui import UI
 from random import randint,choice,shuffle
 from custom_timer import Timer
-import wave
 
 class Game:
     def __init__(self):
