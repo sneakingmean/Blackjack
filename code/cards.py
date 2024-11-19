@@ -12,6 +12,7 @@ class Card(pygame.sprite.Sprite):
         self.rank = rank
         self.value = self.get_value()
         self.face_up = True #which side of card is currently showing
+        self.rotated = False #true if card is rotated
 
     #Returns the value of the card. Value of ace is returned as 1
     def get_value(self):
@@ -30,11 +31,16 @@ class Card(pygame.sprite.Sprite):
             self.image = self.back_surf
             self.face_up = False
         else:
-            self.image = self.front_surf
             self.face_up = True
+            if self.rotated:
+                self.rotate()
+            else:
+                self.image = self.front_surf
 
     def rotate(self):
-        self.image = pygame.transform.rotozoom(self.front_surf,90,1)
+        if self.face_up: self.image = pygame.transform.rotozoom(self.front_surf,90,1)
+        else: self.image = pygame.transform.rotozoom(self.back_surf,90,1)
+        self.rotated = True
 
 class Hand():
     def __init__(self,bet):
@@ -64,25 +70,26 @@ class Hand():
         return card
 
     def counter(self):
-        value = self.cards[self.index].get_value()
-        if value==1:
-            if self.total+11>21:
+        if self.cards[self.index].face_up:
+            value = self.cards[self.index].get_value()
+            if value==1:
+                if self.total+11>21:
+                    self.total+=value
+                else: 
+                    self.total+=11
+                    self.num_aces+=1
+            else:
+                if self.total + value > 21:
+                    if self.num_aces > 0:
+                        self.total -=10
+                        self.num_aces-=1
                 self.total+=value
-            else: 
-                self.total+=11
-                self.num_aces+=1
-        else:
-            if self.total + value > 21:
-                if self.num_aces > 0:
-                    self.total -=10
-                    self.num_aces-=1
-            self.total+=value
 
-        self.index+=1
+            self.index+=1
 
-        if self.total>21:
-            self.bust=True
-            self.last_bet=self.bet
+            if self.total>21:
+                self.bust=True
+                self.last_bet=self.bet
 
     def get_len(self):
         return len(self.cards)        

@@ -67,7 +67,7 @@ class UI:
                         if mouse[0] and not (mouse[1] or mouse[2]):
                             if self.double_click_timer:
                                 if self.first_mouse[0]:
-                                    self.player_action = 'double'
+                                    self.player_action = 'up_double'
                                     self.first_mouse=None
                                     self.double_click_timer.deactivate()
                                 elif self.first_mouse[2]:
@@ -82,6 +82,10 @@ class UI:
                         if mouse[2] and not (mouse[0] or mouse[1]):
                             if self.double_click_timer and self.first_mouse[0]:
                                 self.player_action = 'split'
+                                self.first_mouse=None
+                                self.double_click_timer.deactivate()
+                            elif self.double_click_timer and self.first_mouse[2]:
+                                self.player_action = 'down_double'
                                 self.first_mouse=None
                                 self.double_click_timer.deactivate()
                             else:
@@ -119,9 +123,12 @@ class UI:
                 #stand
                 if not any(mouse) and keys_just_pressed[pygame.K_s]:
                     self.player_action = 'stand'
-                #double
+                #face up double
                 if not any(mouse) and keys_just_pressed[pygame.K_d]:
-                    self.player_action = 'double'
+                    self.player_action = 'up_double'
+                #face down double
+                if not any(mouse) and (keys[pygame.K_LSHIFT] and keys_just_pressed[pygame.K_d]):
+                    self.player_action = 'down_double'
                 #split
                 if not any(mouse) and (keys[pygame.K_LEFT] and keys[pygame.K_RIGHT]):
                     self.player_action = 'split'
@@ -324,17 +331,17 @@ class UI:
             rect = pygame.FRect(WINDOW_WIDTH/2-300,WINDOW_HEIGHT/2-200,600,400)
             pygame.draw.rect(self.display_surface,COLORS['white'],rect,0,4)
             pygame.draw.rect(self.display_surface,COLORS['gray'],rect,4,4)
-            font = pygame.font.Font(FONT_FILE,30)
+            font = pygame.font.Font(FONT_FILE,20)
 
-            action_surf = font.render('Hit\n\nStand\n\nDouble\n\nSplit\n\nSurrender',True,'black')
+            action_surf = font.render('Action\n______\nHit\n\nStand\n\nFace Up Double\n\nFace Down Double\n\nSplit\n\nSurrender',True,'black')
             action_rect = action_surf.get_frect(midleft = rect.move(10,0).midleft)
             self.display_surface.blit(action_surf,action_rect)
 
-            mouse_action_surf = font.render('L Click\n\nR Click\n\n2x L Click\n\nL+R Click\n\nScroll CLick',True,'black')
+            mouse_action_surf = font.render('Mouse\n_____\nL-Click\n\nR-Click\n\n2x L-Click\n\n2x R-Click\n\nL-Click + R-Click\n\nMouseWheel-CLick',True,'black')
             mouse_action_rect = mouse_action_surf.get_frect(center = rect.center)
             self.display_surface.blit(mouse_action_surf,mouse_action_rect)
 
-            keyboard_action_surf = font.render('Space\n\nS\n\nD\n\n\u2190 + \u2192\n\nShift + S',True,'black')
+            keyboard_action_surf = font.render('Keyboard\n________\nSpace\n\nS\n\nD\n\nL-Shift + D\n\nL-Arrow + R-Arrow\n\nL-Shift + S',True,'black')
             keyboard_action_rect = keyboard_action_surf.get_frect(midright = rect.move(-10,0).midright)
             self.display_surface.blit(keyboard_action_surf,keyboard_action_rect)
 

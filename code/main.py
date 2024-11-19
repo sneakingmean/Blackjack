@@ -59,16 +59,17 @@ class Game:
         self.insurance = False #true if dealer is currenly offering insurance
 
         #timers
-        delay = 600
-        self.player_deal_timer = Timer(delay,func=self.add_card)
-        self.dealer_deal_timer = Timer(delay,func=self.add_dealer_card)
-        self.stage_change_timer = Timer(delay)
-        self.flip_timer = Timer(delay,func=self.flip_card)
-        self.result_timer = Timer(1200,func=self.change_player_index)
-        self.bust_sounds_timer = Timer(delay,func=self.audio['bust'].play)
-        self.shuffle_timer = Timer(1200)
+        deal_delay = 600
+        stage_delay = 1200
+        self.player_deal_timer = Timer(deal_delay,func=self.add_card)
+        self.dealer_deal_timer = Timer(deal_delay,func=self.add_dealer_card)
+        self.stage_change_timer = Timer(stage_delay)
+        self.flip_timer = Timer(deal_delay,func=self.flip_card)
+        self.result_timer = Timer(stage_delay,func=self.change_player_index)
+        self.bust_sound_timer = Timer(deal_delay,func=self.audio['bust'].play)
+        self.shuffle_timer = Timer(stage_delay)
 
-        self.timers = [self.player_deal_timer,self.dealer_deal_timer,self.stage_change_timer,self.flip_timer,self.result_timer,self.bust_sounds_timer,self.shuffle_timer]
+        self.timers = [self.player_deal_timer,self.dealer_deal_timer,self.stage_change_timer,self.flip_timer,self.result_timer,self.bust_sound_timer,self.shuffle_timer]
 
         self.audio['here_comes_the_money'].play(-1)
 
@@ -423,7 +424,6 @@ class Game:
             running_count_rect = running_count_surf.get_frect(topleft = self.count_rect.move(10,0).topleft)
             self.display_surface.blit(running_count_surf,running_count_rect)
             true_count_surf = font.render(f'True Count: {max(int(self.running_count/(self.shoe.get_num_cards_left()/52)),0)}',True,'black')
-            print(max(int(self.running_count/self.shoe.get_num_cards_left()/52),0))
             true_count_rect = true_count_surf.get_frect(bottomleft = self.count_rect.move(10,0).bottomleft)
             self.display_surface.blit(true_count_surf,true_count_rect)
         else:
@@ -603,7 +603,7 @@ class Game:
                                 if self.do_sounds: self.audio['stand'].play()
                                 if self.players[self.player_index].hand == self.players[self.player_index].num_hands-1: self.player_index += 1 
                                 else: self.players[self.player_index].hand+=1
-                            case 'double':
+                            case 'up_double':
                                 if self.players[self.player_index].money > 0 and current_hand.get_len()==2:
                                     #alter bet
                                     double_amount = 0
@@ -613,6 +613,26 @@ class Game:
                                     self.players[self.player_index].money-=double_amount
 
                                     self.current_card = self.shoe.deal_card()
+                                    self.current_card.rotate()
+                                    pos = self.placements[self.player_index]+current_hand.get_len()*self.offset+self.current_hand_offset(self.players[self.player_index].num_hands-1,self.players[self.player_index].hand)
+                                    self.current_card.assign_rect(pos)
+                                    current_hand.add_card(self.current_card)
+                                    self.player_deal_timer.activate()
+                                    
+                                    if self.players[self.player_index].hand == self.players[self.player_index].num_hands-1: self.player_index += 1 
+                                    else: self.players[self.player_index].hand+=1
+                                elif self.do_sounds: self.audio['invalid_move'].play()
+                            case 'down_double':
+                                if self.players[self.player_index].money > 0 and current_hand.get_len()==2:
+                                    #alter bet
+                                    double_amount = 0
+                                    if self.players[self.player_index].money < current_hand.bet: double_amount = self.players[self.player_index]._money
+                                    else: double_amount = current_hand.bet
+                                    current_hand.bet += double_amount
+                                    self.players[self.player_index].money-=double_amount
+
+                                    self.current_card = self.shoe.deal_card()
+                                    self.current_card.flip()
                                     self.current_card.rotate()
                                     pos = self.placements[self.player_index]+current_hand.get_len()*self.offset+self.current_hand_offset(self.players[self.player_index].num_hands-1,self.players[self.player_index].hand)
                                     self.current_card.assign_rect(pos)
@@ -649,7 +669,7 @@ class Game:
                         if current_hand.bust:
                             current_hand.bet = 0
                             self.num_hands_left-=1
-                            if self.do_sounds: self.bust_sounds_timer.activate()
+                            if self.do_sounds: self.bust_sound_timer.activate()
                     else:
                         if self.players[self.player_index].hand == self.players[self.player_index].num_hands-1: self.player_index += 1
                         else: self.players[self.player_index].hand+=1
@@ -715,16 +735,22 @@ class Game:
                 else:
                     current_hand = self.players[self.player_index].hands[self.players[self.player_index].hand]
                     if current_hand.get_len()>0:
-                        if (self.dealer.total < current_hand.total or self.dealer.bust) and not current_hand.bust:
-                            self.current_result = current_hand.bet
-                            self.players[self.player_index].money += 2*current_hand.bet
-                        elif self.dealer.total == current_hand.total and not current_hand.bust:
-                            self.current_result = 0
-                            self.players[self.player_index].money += current_hand.bet
-                        else:
-                            self.current_result = min(-current_hand.bet,-current_hand.last_bet)
-                        current_hand.bet = 0
-                        self.result_timer.activate()
+                        if not current_hand.cards[-1].face_up: #flip any doubles that are face down
+                            not current_hand.cards[-1].flip()
+                            current_hand.counter()
+                            if current_hand.bust: self.bust_sound_timer.activate()
+                            self.stage_change_timer.activate()
+                        if not self.stage_change_timer:
+                            if (self.dealer.total < current_hand.total or self.dealer.bust) and not current_hand.bust:
+                                self.current_result = current_hand.bet
+                                self.players[self.player_index].money += 2*current_hand.bet
+                            elif self.dealer.total == current_hand.total and not current_hand.bust:
+                                self.current_result = 0
+                                self.players[self.player_index].money += current_hand.bet
+                            else:
+                                self.current_result = min(-current_hand.bet,-current_hand.last_bet)
+                            current_hand.bet = 0
+                            self.result_timer.activate()
                     else:
                         self.change_player_index()
 
