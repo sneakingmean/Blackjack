@@ -53,7 +53,7 @@ def table_importer(*path):
 
 def chip_importer(*path):
     dict = {}
-    values = [1,5,25,10,100,1000,10,500,2.5,10]
+    values = [1,5,25,50,100,1000,5000,500,2.5,10]
     full_path = join(*path)
     surf = pygame.image.load(full_path).convert_alpha()
     cutout_width = surf.get_width()/5
@@ -61,12 +61,11 @@ def chip_importer(*path):
     #first row
     for row in range(2):
         for col in range(5):
-            if 5*row+col<13:
-                name = values[row*5+col]
-                cutout_rect = pygame.FRect(cutout_width*col,cutout_height*row,cutout_width,cutout_height)
-                cutout_surf = surf.subsurface(cutout_rect).convert_alpha()
-                cutout_surf.set_colorkey('#008080')
-                if name not in dict.keys():
-                    dict[name] = cutout_surf  
+            name = values[row*5+col]
+            cutout_rect = pygame.FRect(cutout_width*col,cutout_height*row,cutout_width,cutout_height)
+            cutout_surf = surf.subsurface(cutout_rect).convert_alpha()
+            cutout_surf.set_colorkey('#008080')
+            if name not in dict.keys():
+                dict[name] = cutout_surf  
     sorted_dict = {key:dict[key] for key in sorted(dict)}                             
     return sorted_dict

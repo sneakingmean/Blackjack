@@ -14,13 +14,14 @@ class UI:
         #bet ui
         self.chip_surfs = chip_surfs
         self.bet = 0 #bet amount that is displayed on the ui
-        self.chip_values = [1,2.5,5,10,25,100,500,1000] #ordered list used for getting the value of a chip from the surface that was clicked on
+        self.chip_values = [5,25,50,100,500,1000,5000] #ordered list used for getting the value of a chip from the surface that was clicked on
         self.table_min = table_min
         self.table_max = table_max
         self.bet_try = None #if an invalid bet is attempted, will turn false, then reset after 1 frame. Will turn true if valid bet is placed
 
         #player turn ui
         self.help_open = False #true if help menu has been clicked and is open
+        self.rules_open = False #true if rules menu is open
         self.first_mouse = None #record the first mouse click of a player during their move
         self.player_action = None #action the player chose which will be returned to main
         self.count_rect = count_rect #rect displaying the count
@@ -36,15 +37,15 @@ class UI:
         mouse_pos = pygame.mouse.get_pos()
         if self.state == 'bet':
             if pygame.mouse.get_just_pressed()[0]:
-                for i,rect in enumerate(self.chips.values()):
-                    if rect[0].collidepoint(mouse_pos):
+                for i,chip in enumerate(self.chips.values()):
+                    if chip[1].collidepoint(mouse_pos):
                         self.bet = min(self.bet+self.chip_values[i],self.table_max,self.players[self.player_index].money)
                 if self.reset_rect_hitbox.collidepoint(mouse_pos):
                     self.bet = 0
                 elif self.min_bet_rect_hitbox.collidepoint(mouse_pos):
                     self.bet = self.table_min
                 elif self.max_bet_rect_hitbox.collidepoint(mouse_pos):
-                    self.bet = self.table_max
+                    self.bet = min(self.table_max,self.players[self.player_index].money)
 
             if pygame.key.get_just_pressed()[pygame.K_SPACE] or pygame.mouse.get_just_pressed()[2]:
                 if self.try_bet(self.bet):
@@ -54,12 +55,12 @@ class UI:
                 else: 
                     self.bet_try = False
         elif self.state == 'player_turn':
-            if not self.help_open:
+            if not self.help_open and not self.rules_open:
                 mouse = pygame.mouse.get_just_pressed()
                 keys = pygame.key.get_pressed()
                 keys_just_pressed = pygame.key.get_just_pressed()
                 #if not over the help box
-                if not self.help_rect.collidepoint(mouse_pos):
+                if not self.help_rect.collidepoint(mouse_pos) and not self.rules_rect.collidepoint(mouse_pos):
                     if not self.count_rect.collidepoint(mouse_pos):
                         #mouse controls
                         #l click
@@ -101,10 +102,14 @@ class UI:
                             elif self.first_mouse[2]:
                                 self.player_action = 'stand'
                             self.first_mouse=None
-                else:
+                elif self.help_rect.collidepoint(mouse_pos):
                     #open help menu
                     if mouse[0]:
                         self.help_open=True
+                else:
+                    #open rules menu
+                    if mouse[0]:
+                        self.rules_open=True
 
                 #keyboard controls
                 #hit
@@ -126,12 +131,18 @@ class UI:
                 #help
                 if not any(mouse) and keys_just_pressed[pygame.K_h]:
                     self.help_open = True
+                #rules
+                if not any(mouse) and keys_just_pressed[pygame.K_r]:
+                    self.rules_open = True
                 
-            else:
+            elif self.help_open:
                 #close help menu
                 if self.close_help_rect.collidepoint(mouse_pos) and pygame.mouse.get_just_pressed()[0] or pygame.key.get_just_pressed()[pygame.K_h]:
                     self.help_open=False
 
+            else:
+                if self.close_rules_rect.collidepoint(mouse_pos) and pygame.mouse.get_just_pressed()[0] or pygame.key.get_just_pressed()[pygame.K_r]:
+                    self.rules_open=False
         elif self.state=='insurance':
             if pygame.mouse.get_just_pressed()[0]:
                 if self.yes_rect_hitbox.collidepoint(mouse_pos):
@@ -184,16 +195,15 @@ class UI:
         self.display_surface.blit(money_surf,money_rect)
 
         #Draw all chips
-        spacing = rect.width/(len(self.chip_surfs.keys()))
+        spacing = rect.width/(len(self.chip_values))
         chip_font = pygame.font.Font(FONT_FILE,15)
-        chip_pos = [(6+rect.left+spacing*i,WINDOW_HEIGHT/2-10) for i in range(len(self.chip_surfs.keys()))]
-        self.chips = {}
-        for i,chip in enumerate(self.chip_surfs.values()):
-            self.chips[chip] = chip.get_frect(bottomleft=chip_pos[i]),self.chip_values[i]
-        for chip in self.chips.keys():
-            chip_val_surf = chip_font.render(f'{self.chips[chip][1]}',True,'black')
-            chip_val_rect = chip_val_surf.get_frect(center = self.chips[chip][0].center)
-            self.display_surface.blit(chip,self.chips[chip][0])
+        chip_pos = [(12+rect.left+spacing*i,WINDOW_HEIGHT/2-10) for i in range(len(self.chip_values))]
+        self.chips = {} #self used so that input can recognize clicks on chips
+        for i,val in enumerate(self.chip_values):
+            self.chips[val] = self.chip_surfs[val],self.chip_surfs[val].get_frect(bottomleft=chip_pos[i])
+            chip_val_surf = chip_font.render(f'{val}',True,'black')
+            chip_val_rect = chip_val_surf.get_frect(center = self.chips[val][1].center)
+            self.display_surface.blit(self.chips[val][0],self.chips[val][1])
             self.display_surface.blit(chip_val_surf,chip_val_rect)
             
         #bet caption
@@ -290,7 +300,7 @@ class UI:
         pygame.draw.rect(self.display_surface,COLORS['red'],self.no_rect_hitbox,4,4)
 
     def player_turn_ui(self):
-        if not self.help_open:
+        if not self.help_open and not self.rules_open:
             font = pygame.font.Font(FONT_FILE,20)
 
             #small window that will open if pressed for more details on hitting
@@ -301,7 +311,15 @@ class UI:
             name_rect = name_surf.get_frect(center = self.help_rect.center)
             self.display_surface.blit(name_surf,name_rect)
 
-        else:
+            #small window that will open if pressed for more details on the rules. Positioned below help
+            self.rules_rect = pygame.FRect(WINDOW_WIDTH-100,100,100,100)
+            pygame.draw.rect(self.display_surface,COLORS['white'],self.rules_rect,0,4)
+            pygame.draw.rect(self.display_surface,COLORS['gray'],self.rules_rect,4,4)
+            name_surf = font.render('Rules',True,'black')
+            name_rect = name_surf.get_frect(center = self.rules_rect.center)
+            self.display_surface.blit(name_surf,name_rect)
+
+        elif self.help_open:
             #controls screen
             rect = pygame.FRect(WINDOW_WIDTH/2-300,WINDOW_HEIGHT/2-200,600,400)
             pygame.draw.rect(self.display_surface,COLORS['white'],rect,0,4)
@@ -323,6 +341,32 @@ class UI:
             close_help_surf = font.render('X',True,'black')
             self.close_help_rect = close_help_surf.get_frect(topright = rect.move(-5,5).topright)
             self.display_surface.blit(close_help_surf,self.close_help_rect)
+
+        elif self.rules_open:
+            #rules screen
+            rect = pygame.FRect(WINDOW_WIDTH/2-300,WINDOW_HEIGHT/2-200,600,400)
+            pygame.draw.rect(self.display_surface,COLORS['white'],rect,0,4)
+            pygame.draw.rect(self.display_surface,COLORS['gray'],rect,4,4)
+            font = pygame.font.Font(FONT_FILE,20)
+
+            rules_surf = font.render(
+"""Splitting
+-Can Split up to 3 Times (4 Hands)
+-Can Only Split Aces Once\n
+Doubling
+-Can Double for Less\n
+Surrender
+-Late Surrender is Available
+-Surrender is not Allowed After Splitting or Drawing Cards\n
+Betting
+-Player Must be Able to Cover Minimum Bet to Play
+""",True,'black')
+            rules_rect = rules_surf.get_frect(midleft = rect.move(10,0).midleft)
+            self.display_surface.blit(rules_surf,rules_rect)
+
+            close_rules_surf = font.render('X',True,'black')
+            self.close_rules_rect = close_rules_surf.get_frect(topright = rect.move(-5,5).topright)
+            self.display_surface.blit(close_rules_surf,self.close_rules_rect)
 
     def update(self,player_index):
         self.player_index = player_index

@@ -489,7 +489,7 @@ class Game:
             self.dealer_blackjack = True
 
     def check_player_blackjacks(self):
-        if not self.result_timer:
+        if not self.result_timer and not self.flip_timer:
             if self.player_index>=len(self.players):
                 if self.dealer_blackjack: self.reset()
                 else:
@@ -538,6 +538,7 @@ class Game:
             if self.shoe.get_num_cards_left()<self.shoe.cut_card:
                 self.shoe.reset(self.card_surfs,self.num_decks)
                 self.audio['shuffle'].play()
+                self.running_count = 0
             rect = pygame.FRect(WINDOW_WIDTH/2-150,WINDOW_HEIGHT/2-50,300,100)
             pygame.draw.rect(self.display_surface,COLORS['white'],rect,0,4)
             pygame.draw.rect(self.display_surface,COLORS['gray'],rect,4,4)
@@ -748,7 +749,7 @@ class Game:
         #reset the players and dealers
         temp_list = []
         for player in self.players:
-            if player.money > 0:
+            if player.money >= self.table_min:
                 temp_list.append(player)
                 player.reset()
         self.players = temp_list
