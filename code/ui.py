@@ -25,6 +25,9 @@ class UI:
         self.player_action = None #action the player chose which will be returned to main
         self.count_rect = count_rect #rect displaying the count
 
+        #insurance
+        self.insurance_try = None ##if an invalid insurance bet is attempted, will turn false, then reset after 1 frame. Will turn true if valid insurance bet is placed
+
         #timer
         self.double_click_timer = Timer(300)
 
@@ -35,7 +38,7 @@ class UI:
             if pygame.mouse.get_just_pressed()[0]:
                 for i,rect in enumerate(self.chips.values()):
                     if rect[0].collidepoint(mouse_pos):
-                        self.bet += self.chip_values[i]
+                        self.bet = min(self.bet+self.chip_values[i],self.table_max,self.players[self.player_index].money)
                 if self.reset_rect_hitbox.collidepoint(mouse_pos):
                     self.bet = 0
                 elif self.min_bet_rect_hitbox.collidepoint(mouse_pos):
@@ -53,9 +56,12 @@ class UI:
         elif self.state == 'player_turn':
             if not self.help_open:
                 mouse = pygame.mouse.get_just_pressed()
+                keys = pygame.key.get_pressed()
+                keys_just_pressed = pygame.key.get_just_pressed()
                 #if not over the help box
                 if not self.help_rect.collidepoint(mouse_pos):
                     if not self.count_rect.collidepoint(mouse_pos):
+                        #mouse controls
                         #l click
                         if mouse[0] and not (mouse[1] or mouse[2]):
                             if self.double_click_timer:
@@ -99,15 +105,41 @@ class UI:
                     #open help menu
                     if mouse[0]:
                         self.help_open=True
+
+                #keyboard controls
+                #hit
+                if not any(mouse) and keys_just_pressed[pygame.K_SPACE]:
+                    print('hit')
+                    self.player_action = 'hit'
+                #stand
+                if not any(mouse) and keys_just_pressed[pygame.K_s]:
+                    self.player_action = 'stand'
+                #double
+                if not any(mouse) and keys_just_pressed[pygame.K_d]:
+                    self.player_action = 'double'
+                #split
+                if not any(mouse) and (keys[pygame.K_LEFT] and keys[pygame.K_RIGHT]):
+                    self.player_action = 'split'
+                #surrender
+                if not any(mouse) and (keys[pygame.K_LSHIFT] and keys_just_pressed[pygame.K_s]):
+                    self.player_action = 'surrender'
+                #help
+                if not any(mouse) and keys_just_pressed[pygame.K_h]:
+                    self.help_open = True
+                
             else:
                 #close help menu
-                if self.close_help_rect.collidepoint(mouse_pos) and pygame.mouse.get_just_pressed()[0]:
+                if self.close_help_rect.collidepoint(mouse_pos) and pygame.mouse.get_just_pressed()[0] or pygame.key.get_just_pressed()[pygame.K_h]:
                     self.help_open=False
+
         elif self.state=='insurance':
             if pygame.mouse.get_just_pressed()[0]:
                 if self.yes_rect_hitbox.collidepoint(mouse_pos):
                     if self.try_bet(bet=1,insurance=True):
+                        self.insurance_try=True
                         self.state='off'
+                    else:
+                        self.insurance_try=False
                 elif self.no_rect_hitbox.collidepoint(mouse_pos):
                     if self.try_bet(bet=0,insurance=True):
                         self.state='off'
@@ -119,13 +151,13 @@ class UI:
         rect = pygame.FRect(WINDOW_WIDTH/2-300,WINDOW_HEIGHT/2-200,600,400)
         pygame.draw.rect(self.display_surface,COLORS['white'],rect,0,50)
         pygame.draw.rect(self.display_surface,COLORS['gray'],rect,4,50)
-        font = pygame.font.Font(None,50)
-        small_font = pygame.font.Font(None,40)
+        font = pygame.font.Font(FONT_FILE,40)
+        small_font = pygame.font.Font(FONT_FILE,30)
 
         #Table min and max
         min_pos = (WINDOW_WIDTH/2-230,WINDOW_HEIGHT/2-160)
         min_surf_1 = small_font.render('Min',True,COLORS['black'])
-        min_surf_2 = small_font.render(f'${self.table_min}',True,COLORS['table'])
+        min_surf_2 = small_font.render(f'${self.table_min}',True,COLORS['table_1'])
         min_rect_1 = min_surf_1.get_frect(center = min_pos)
         min_rect_2 = min_surf_2.get_frect(center = min_pos+pygame.Vector2(0,40))
         self.display_surface.blit(min_surf_1,min_rect_1)
@@ -133,7 +165,7 @@ class UI:
 
         max_pos = (WINDOW_WIDTH/2+230,WINDOW_HEIGHT/2-160)
         max_surf_1 = small_font.render('Max',True,COLORS['black'])
-        max_surf_2 = small_font.render(f'${self.table_max}',True,COLORS['table'])
+        max_surf_2 = small_font.render(f'${self.table_max}',True,COLORS['table_1'])
         max_rect_1 = max_surf_1.get_frect(center = max_pos)
         max_rect_2 = max_surf_2.get_frect(center = max_pos+pygame.Vector2(0,40))
         self.display_surface.blit(max_surf_1,max_rect_1)
@@ -147,13 +179,13 @@ class UI:
 
         #bankroll
         money_pos = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2-110)
-        money_surf = font.render(f'${player.money}',True,COLORS['table'])
+        money_surf = font.render(f'${player.money}',True,COLORS['table_1'])
         money_rect = money_surf.get_frect(center = money_pos)
         self.display_surface.blit(money_surf,money_rect)
 
         #Draw all chips
         spacing = rect.width/(len(self.chip_surfs.keys()))
-        chip_font = pygame.font.Font(None,25)
+        chip_font = pygame.font.Font(FONT_FILE,15)
         chip_pos = [(6+rect.left+spacing*i,WINDOW_HEIGHT/2-10) for i in range(len(self.chip_surfs.keys()))]
         self.chips = {}
         for i,chip in enumerate(self.chip_surfs.values()):
@@ -220,7 +252,7 @@ class UI:
         rect = pygame.FRect(WINDOW_WIDTH/2-150,WINDOW_HEIGHT/2-75,300,150)
         pygame.draw.rect(self.display_surface,COLORS['white'],rect,0,4)
         pygame.draw.rect(self.display_surface,COLORS['gray'],rect,4,4)
-        font = pygame.font.Font(None,50)
+        font = pygame.font.Font(FONT_FILE,40)
 
         #Player name
         name_pos = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2-50)
@@ -253,7 +285,7 @@ class UI:
 
     def player_turn_ui(self):
         if not self.help_open:
-            font = pygame.font.Font(None,30)
+            font = pygame.font.Font(FONT_FILE,20)
 
             #small window that will open if pressed for more details on hitting
             self.help_rect = pygame.FRect(WINDOW_WIDTH-100,0,100,100)
@@ -268,15 +300,19 @@ class UI:
             rect = pygame.FRect(WINDOW_WIDTH/2-300,WINDOW_HEIGHT/2-200,600,400)
             pygame.draw.rect(self.display_surface,COLORS['white'],rect,0,4)
             pygame.draw.rect(self.display_surface,COLORS['gray'],rect,4,4)
-            font = pygame.font.Font(None,50)
+            font = pygame.font.Font(FONT_FILE,30)
 
             action_surf = font.render('Hit\n\nStand\n\nDouble\n\nSplit\n\nSurrender',True,'black')
-            action_rect = action_surf.get_frect(midtop = (WINDOW_WIDTH/2-150,WINDOW_HEIGHT/2-175))
+            action_rect = action_surf.get_frect(midleft = rect.move(10,0).midleft)
             self.display_surface.blit(action_surf,action_rect)
 
             mouse_action_surf = font.render('L Click\n\nR Click\n\n2x L Click\n\nL+R Click\n\nScroll CLick',True,'black')
-            mouse_action_rect = mouse_action_surf.get_frect(midtop = (WINDOW_WIDTH/2+150,WINDOW_HEIGHT/2-175))
+            mouse_action_rect = mouse_action_surf.get_frect(center = rect.center)
             self.display_surface.blit(mouse_action_surf,mouse_action_rect)
+
+            keyboard_action_surf = font.render('Space\n\nS\n\nD\n\n\u2190 + \u2192\n\nShift + S',True,'black')
+            keyboard_action_rect = keyboard_action_surf.get_frect(midright = rect.move(-10,0).midright)
+            self.display_surface.blit(keyboard_action_surf,keyboard_action_rect)
 
             close_help_surf = font.render('X',True,'black')
             self.close_help_rect = close_help_surf.get_frect(topright = rect.move(-5,5).topright)

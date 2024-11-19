@@ -4,13 +4,11 @@ from player import *
 from cards import *
 from ui import UI
 from random import randint,choice,shuffle
-from math import pi,sin,cos,degrees,radians
 from custom_timer import Timer
 import wave
 
 class Game:
     def __init__(self):
-        pygame.init()
         self.display_surface = pygame.display.set_mode((WINDOW_WIDTH,WINDOW_HEIGHT))
         pygame.display.set_caption('Blackjack')
         self.clock = pygame.time.Clock()
@@ -45,6 +43,7 @@ class Game:
         self.do_count = False #display the outline for the count rect
         self.show_count = True #display the count in the count rect
         self.do_total = False #display the current hand total
+        self.num_decks = 6 #number of decks in the shoe
         self.count_rect = pygame.FRect(0,0,200,50) #rect for displaying the count
         #will add each player if they are added in init. Money will be changed based on the table chosen
 
@@ -77,13 +76,12 @@ class Game:
     def import_assets(self):
         self.card_surfs = card_importer('images','top_down','cards',color='blue')
         self.chip_surfs = chip_importer('images','top_down','chips.png')
-        self.sapporo = pygame.image.load('images','sapporo.jpg').convert_alpha()
         #table graphics
-        self.table_graphic_surf = pygame.image.load(join('images','top_down','table_graphic.jpg'))
-        self.table_graphic_rect = self.table_graphic_surf.get_frect(center = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2-100))
+        self.table_surfs = table_importer('images','top_down','tables')
+        self.table_rect = self.table_surfs[0].get_frect(center = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2-100))
         #start screen
         self.start_screen_surf = pygame.image.load(join('images','top_down','start_screen.png'))
-        self.start_screen_rect = self.table_graphic_surf.get_frect(topleft = (0,0))
+        self.start_screen_rect = self.start_screen_surf.get_frect(topleft = (0,0))
 
         self.audio = audio_importer('audio')
         #volumes are automatically set to .2
@@ -96,17 +94,11 @@ class Game:
         self.display_surface.fill('black')
         self.display_surface.blit(self.start_screen_surf,self.start_screen_rect)
 
-        # #title
-        # title_font = pygame.font.Font(None,100)
-        # title_surf = title_font.render('Blackjack',True,'white')
-        # title_rect = title_surf.get_frect(midbottom = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2-150))
-        # self.display_surface.blit(title_surf,title_rect)
-
         #start button
         self.start_button_rect = pygame.FRect(WINDOW_WIDTH/2+250,WINDOW_HEIGHT/2+250,200,100)
         pygame.draw.rect(self.display_surface,COLORS['white'],self.start_button_rect,0,4)
         pygame.draw.rect(self.display_surface,COLORS['gray'],self.start_button_rect,4,4)
-        start_button_font = pygame.font.Font(None,30)
+        start_button_font = pygame.font.Font(FONT_FILE,20)
         start_button_words_surf = start_button_font.render('Click to Start',True,COLORS['black'])
         start_button_words_rect = start_button_words_surf.get_frect(center=self.start_button_rect.center)
         self.display_surface.blit(start_button_words_surf,start_button_words_rect)
@@ -118,16 +110,16 @@ class Game:
 
     def draw_initializer(self):
          #background
-        self.display_surface.fill(COLORS['table'])
+        self.display_surface.fill(COLORS['table_1'])
 
-        section_font = pygame.font.Font(None,80)
+        section_font = pygame.font.Font(FONT_FILE,70)
         rect = self.player_1_rect = pygame.FRect(WINDOW_WIDTH/2-475,0,150,180)
         players_section_surf = section_font.render('Players',True,COLORS['white'])
         players_section_rect = players_section_surf.get_frect(center=rect.center)
         self.display_surface.blit(players_section_surf,players_section_rect)
 
         #Add Players
-        caption_font = pygame.font.Font(None,30)
+        caption_font = pygame.font.Font(FONT_FILE,20)
         self.player_1_rect = pygame.FRect(WINDOW_WIDTH/2-510,150,220,100)
         self.player_2_rect = pygame.FRect(WINDOW_WIDTH/2-110,150,220,100)
         self.player_3_rect = pygame.FRect(WINDOW_WIDTH/2+290,150,220,100)        
@@ -228,7 +220,7 @@ class Game:
         self.display_surface.blit(table_5_name_surf,table_5_name_rect)
 
         #audio
-        self.audio_rect = pygame.FRect(WINDOW_WIDTH/2-475,WINDOW_HEIGHT-120,200,100)
+        self.audio_rect = pygame.FRect(WINDOW_WIDTH/2-550,WINDOW_HEIGHT-120,150,100)
         if self.do_sounds==True:
             pygame.draw.rect(self.display_surface,COLORS['green'],self.audio_rect,0,4)
         else:
@@ -239,7 +231,7 @@ class Game:
         self.display_surface.blit( audio_surf, audio_rect)
 
         #count
-        self.init_count_rect = pygame.FRect(WINDOW_WIDTH/2-250,WINDOW_HEIGHT-120,200,100)
+        self.init_count_rect = pygame.FRect(WINDOW_WIDTH/2-375,WINDOW_HEIGHT-120,150,100)
         if self.do_count==True:
             pygame.draw.rect(self.display_surface,COLORS['green'],self.init_count_rect,0,4)
         else:
@@ -250,7 +242,7 @@ class Game:
         self.display_surface.blit( init_count_surf, init_count_rect)
 
         #totals
-        self.total_rect = pygame.FRect(WINDOW_WIDTH/2-25,WINDOW_HEIGHT-120,200,100)
+        self.total_rect = pygame.FRect(WINDOW_WIDTH/2-200,WINDOW_HEIGHT-120,150,100)
         if self.do_total==True:
             pygame.draw.rect(self.display_surface,COLORS['green'],self.total_rect,0,4)
         else:
@@ -260,7 +252,16 @@ class Game:
         total_rect =  total_surf.get_frect(center=self.total_rect.center)
         self.display_surface.blit( total_surf, total_rect)
 
-        #sapporo
+        #shoe
+        self.shoe_rect = pygame.FRect(WINDOW_WIDTH/2-25,WINDOW_HEIGHT-120,150,100)
+        pygame.draw.rect(self.display_surface,COLORS['white'],self.shoe_rect,0,4)
+        pygame.draw.rect(self.display_surface,COLORS['gray'],self.shoe_rect,4,4)
+        num_decks_surf = caption_font.render(f'{self.num_decks}',True,COLORS['black'])
+        num_decks_rect =  num_decks_surf.get_frect(midtop=self.shoe_rect.center)
+        self.display_surface.blit( num_decks_surf, num_decks_rect)
+        num_decks_label_surf = caption_font.render('Decks in Shoe',True,COLORS['black'])
+        num_decks_label_rect =  num_decks_label_surf.get_frect(midbottom=self.shoe_rect.center)
+        self.display_surface.blit( num_decks_label_surf, num_decks_label_rect)
 
         #start button
         self.start_button_rect = pygame.FRect(WINDOW_WIDTH/2+250,WINDOW_HEIGHT-120,200,100)
@@ -290,12 +291,14 @@ class Game:
         elif pygame.mouse.get_just_pressed()[0] and self.table_5_rect.collidepoint(mouse_pos): #table 5
             self.table,self.table_min,self.table_max = 4,500,50000
 
-        elif pygame.mouse.get_just_pressed()[0] and self.audio_rect.collidepoint(mouse_pos): #table 5
+        elif pygame.mouse.get_just_pressed()[0] and self.audio_rect.collidepoint(mouse_pos): #sound effects
             self.do_sounds = not self.do_sounds
-        elif pygame.mouse.get_just_pressed()[0] and self.init_count_rect.collidepoint(mouse_pos): #table 5
+        elif pygame.mouse.get_just_pressed()[0] and self.init_count_rect.collidepoint(mouse_pos): #show count
             self.do_count = not self.do_count
-        elif pygame.mouse.get_just_pressed()[0] and self.total_rect.collidepoint(mouse_pos): #table 5
+        elif pygame.mouse.get_just_pressed()[0] and self.total_rect.collidepoint(mouse_pos): #show totals
             self.do_total = not self.do_total
+        elif pygame.mouse.get_just_pressed()[0] and self.shoe_rect.collidepoint(mouse_pos): #shoe powerup
+            self.num_decks = max((self.num_decks+2)%10,2)
 
         elif pygame.mouse.get_just_pressed()[0] and self.start_button_rect.collidepoint(mouse_pos):
             self.players.clear()
@@ -314,12 +317,33 @@ class Game:
                 self.game_state = 'play'
                 self.get_card_positions()
                 self.ui = UI(self.display_surface,self.chip_surfs,self.players,self.player_index,self.table_min,self.table_max,self.count_rect)
-                self.shoe = Shoe(self.card_surfs,1)
+                self.shoe = Shoe(self.card_surfs,self.num_decks)
                 self.audio['here_comes_the_money'].stop()
                 self.audio['ambience'].play(-1) if self.do_sounds else False 
 
+    def draw_table(self):
+        match self.table_min:
+            case 15:
+                table_surf = self.table_surfs[0]
+                color = COLORS['table_1']         
+            case 25:
+                table_surf = self.table_surfs[1]
+                color = COLORS['table_2']     
+            case 50:
+                table_surf = self.table_surfs[2]
+                color = COLORS['table_3']     
+            case 100:
+                table_surf = self.table_surfs[3]
+                color = COLORS['table_4']     
+            case 500:
+                table_surf = self.table_surfs[4]
+                color = COLORS['table_5']     
+
+        self.display_surface.fill(color)        
+        self.display_surface.blit(table_surf,self.table_rect)
+
     def draw_current_bets(self):
-        font = pygame.font.Font(None,30)
+        font = pygame.font.Font(FONT_FILE,20)
 
         for i,player in enumerate(self.players):
             color = COLORS['white'] if self.player_index==i and not self.player_deal_timer else COLORS['gray']
@@ -355,7 +379,7 @@ class Game:
             self.display_surface.blit(dealer_total_surf,dealer_total_rect)
 
     def draw_players(self):
-        font = pygame.font.Font(None,30)
+        font = pygame.font.Font(FONT_FILE,20)
 
         for i,player in enumerate(self.players):
             color = COLORS['white'] if self.player_index==i and not self.player_deal_timer else COLORS['gray']
@@ -371,7 +395,7 @@ class Game:
         rect = pygame.FRect(WINDOW_WIDTH/2-150,WINDOW_HEIGHT/2-50,300,100)
         pygame.draw.rect(self.display_surface,COLORS['white'],rect,0,4)
         pygame.draw.rect(self.display_surface,COLORS['gray'],rect,4,4)
-        font = pygame.font.Font(None,50)
+        font = pygame.font.Font(FONT_FILE,40)
 
         #Player name
         name_pos = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2-25)
@@ -389,7 +413,7 @@ class Game:
         self.display_surface.blit(money_surf,money_rect)
         
     def draw_count(self):
-        font = pygame.font.Font(None,30)
+        font = pygame.font.Font(FONT_FILE,20)
         #display counts
         
         if self.show_count:
@@ -448,6 +472,8 @@ class Game:
         if self.num_insurance != len(self.players):
             if not self.players[self.player_index].insurance and self.players[self.player_index].hands[0].bet>0:
                 self.ui.state = 'insurance'
+                if self.ui.bet_try==False and self.do_sounds: self.audio['invalid_move'].play()
+                self.ui.bet_try = None
             else:
                 self.num_insurance += 1
                 self.player_index = (self.player_index+1)%len(self.players)
@@ -498,22 +524,22 @@ class Game:
             if self.num_bets_placed != len(self.players):
                 if not self.players[self.player_index].bet_placed:
                     self.ui.state = 'bet'
-                    if self.ui.bet_try==False: self.audio['invalid_move'].play()
+                    if self.ui.bet_try==False and self.do_sounds: self.audio['invalid_move'].play()
                     self.ui.bet_try = None
                 else:
-                    self.audio['bet'].play()
+                    if self.do_sounds: self.audio['bet'].play()
                     self.num_bets_placed += 1
                     self.player_index = (self.player_index+1)%len(self.players)
 
             elif self.stage=='bet': self.stage = 'deal' #move onto the deal when all bets are place
         else: 
             if self.shoe.get_num_cards_left()<self.shoe.cut_card:
-                self.shoe.reset(self.card_surfs,1)
+                self.shoe.reset(self.card_surfs,self.num_decks)
                 self.audio['shuffle'].play()
             rect = pygame.FRect(WINDOW_WIDTH/2-150,WINDOW_HEIGHT/2-50,300,100)
             pygame.draw.rect(self.display_surface,COLORS['white'],rect,0,4)
             pygame.draw.rect(self.display_surface,COLORS['gray'],rect,4,4)
-            font = pygame.font.Font(None,50)
+            font = pygame.font.Font(FONT_FILE,40)
             surf = font.render('Shuffling Shoe',True,'black')
             rect = surf.get_frect(center = rect.center)
             self.display_surface.blit(surf,rect)
@@ -593,7 +619,7 @@ class Game:
                                     
                                     if self.players[self.player_index].hand == self.players[self.player_index].num_hands-1: self.player_index += 1 
                                     else: self.players[self.player_index].hand+=1
-                                else: self.audio['invalid_move'].play()
+                                elif self.do_sounds: self.audio['invalid_move'].play()
                             case 'split':                 #check that player has enough money to split                    #check the player has only 2 cards                   #check that the cards have the same value                 #only allow 3 splits
                                 if self.players[self.player_index].money >= self.players[self.player_index].current_bet  and current_hand.get_len()==2 and current_hand.cards[0].get_value() == current_hand.cards[1].get_value() and self.players[self.player_index].num_hands<4:
                                     card = current_hand.remove_card()
@@ -607,7 +633,7 @@ class Game:
                                             card.rect.midbottom = self.placements[self.player_index]+j*self.offset+self.current_hand_offset(self.players[self.player_index].num_hands-1,i)
                                         hand.bet = current_hand.bet
 
-                                else: self.audio['invalid_move'].play()
+                                elif self.do_sounds: self.audio['invalid_move'].play()
                             case 'surrender': #can't surrender after split
                                 if not self.players[self.player_index].num_hands>1 and current_hand.get_len()==2:
                                     self.players[self.player_index].money += current_hand.bet/2
@@ -617,7 +643,7 @@ class Game:
                                     current_hand.reset() #avoid the result graphic showing up at the end
                                     self.num_hands_left-=1
                                     if self.do_sounds: self.audio['surrender'].play()
-                                else: self.audio['invalid_move'].play()
+                                elif self.do_sounds: self.audio['invalid_move'].play()
                         if current_hand.bust:
                             current_hand.bet = 0
                             self.num_hands_left-=1
@@ -718,15 +744,24 @@ class Game:
             sprite.kill()
 
         #reset the players and dealers
+        temp_list = []
         for player in self.players:
-            if player.money == 0:
-                self.players.remove(player)
-                self.get_card_positions()
-            player.reset()
+            if player.money > 0:
+                temp_list.append(player)
+                player.reset()
+        self.players = temp_list
+        self.ui.players = self.players
+        self.get_card_positions()
 
         self.num_hands_left = len(self.players)
 
         self.dealer.reset()
+
+        #reset game if no players are left
+        if self.num_hands_left == 0:
+            self.audio['ambience'].stop()
+            self.__init__()
+            self.game_state = 'initialize'
 
 #Functions triggered by timers
     def add_card(self):
@@ -768,14 +803,8 @@ class Game:
                 if event.type == pygame.QUIT:
                     self.running = False
 
-                #Return to start menu
-                # if event.type == pygame.KEYDOWN:
-                #     if event.key == pygame.K_ESCAPE:
-                #         self.playing=False
-
             if self.game_state == 'play':
-                self.display_surface.fill(COLORS['table'])
-                self.display_surface.blit(self.table_graphic_surf,self.table_graphic_rect)
+                self.draw_table()
                 self.get_stage() #calls appropriate functions based on self.stage
 
                 #draw

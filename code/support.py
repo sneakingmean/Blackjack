@@ -43,6 +43,14 @@ def card_importer(*path,color):
                             dict[name] = cutout_surf,back_cutout_surf                                  
     return dict
 
+def table_importer(*path):
+    surfs = []
+    for folder_path, _, file_names in walk(join(*path)):
+        for file_name in file_names:
+            full_path = join(folder_path,file_name)
+            surfs.append(pygame.image.load(full_path))
+    return surfs
+
 def chip_importer(*path):
     dict = {}
     values = [1,5,25,10,100,1000,10,500,2.5,10]
