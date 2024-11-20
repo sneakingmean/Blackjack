@@ -85,6 +85,7 @@ class Game:
 
         self.audio = audio_importer('audio')
         #volumes are automatically set to .2
+        self.audio['deal'].set_volume(.3)
         self.audio['ambience'].set_volume(.1)
         self.audio['stand'].set_volume(.15)
         self.audio['shuffle'].set_volume(.4)
@@ -445,7 +446,7 @@ class Game:
         start_pos = pygame.Vector2(WINDOW_WIDTH/2,WINDOW_HEIGHT-bottom_buffer)
 
         self.placements = {} #hold vectors of player positions based on index
-        x = WINDOW_WIDTH/4 #x offset from player position 2 (directly below dealer)
+        x = WINDOW_WIDTH/3.5 #x offset from player position 2 (directly below dealer)
         y = -50 #y offset from player position 2
 
         if len(self.players)%2==0:
@@ -466,7 +467,7 @@ class Game:
                 self.placements[i] = start_pos + (int(len(self.players)/2)-i)*pygame.Vector2(x,y)
 
     def current_hand_offset(self,num_hands,hand):
-        return pygame.Vector2((-.75*num_hands + 1.5*hand)*self.card_width,0)
+        return pygame.Vector2((-1*num_hands + 2*hand)*self.card_width,0) #ratio of first coefficient to second should be 1:2 to keep cards centered
 
     def offer_insurance(self):
         if self.num_insurance != len(self.players):
@@ -786,10 +787,12 @@ class Game:
         self.dealer.reset()
 
         #reset game if no players are left
-        if self.num_hands_left == 0:
-            self.audio['ambience'].stop()
-            self.__init__()
-            self.game_state = 'initialize'
+        if self.num_hands_left == 0: self.restart()
+
+    def restart(self):
+        self.audio['ambience'].stop()
+        self.__init__()
+        self.game_state = 'initialize'
 
 #Functions triggered by timers
     def add_card(self):
@@ -847,6 +850,7 @@ class Game:
                 self.ui.update(self.player_index)
                 for timer in self.timers:
                     timer.update()
+                if self.ui.return_home: self.restart()
             elif self.game_state == 'init':
                 self.draw_initializer()
                 self.check_initializer()

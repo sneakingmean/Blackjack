@@ -22,6 +22,7 @@ class UI:
         #player turn ui
         self.help_open = False #true if help menu has been clicked and is open
         self.rules_open = False #true if rules menu is open
+        self.return_home = False #True if game has been ended and returned to the start screen
         self.first_mouse = None #record the first mouse click of a player during their move
         self.player_action = None #action the player chose which will be returned to main
         self.count_rect = count_rect #rect displaying the count
@@ -60,7 +61,7 @@ class UI:
                 keys = pygame.key.get_pressed()
                 keys_just_pressed = pygame.key.get_just_pressed()
                 #if not over the help box
-                if not self.help_rect.collidepoint(mouse_pos) and not self.rules_rect.collidepoint(mouse_pos):
+                if not self.help_rect.collidepoint(mouse_pos) and not self.rules_rect.collidepoint(mouse_pos) and not self.home_rect.collidepoint(mouse_pos):
                     if not self.count_rect.collidepoint(mouse_pos):
                         #mouse controls
                         #l click
@@ -110,10 +111,14 @@ class UI:
                     #open help menu
                     if mouse[0]:
                         self.help_open=True
-                else:
+                elif self.rules_rect.collidepoint(mouse_pos):
                     #open rules menu
                     if mouse[0]:
                         self.rules_open=True
+                else:
+                    #return to start screen
+                    if mouse[0]:
+                        self.return_home = True
 
                 #keyboard controls
                 #hit
@@ -130,7 +135,7 @@ class UI:
                 if not any(mouse) and (keys[pygame.K_LSHIFT] and keys_just_pressed[pygame.K_d]):
                     self.player_action = 'down_double'
                 #split
-                if not any(mouse) and (keys[pygame.K_LEFT] and keys[pygame.K_RIGHT]):
+                if not any(mouse) and ((keys[pygame.K_LEFT] and keys_just_pressed[pygame.K_RIGHT]) or (keys_just_pressed[pygame.K_LEFT] and keys[pygame.K_RIGHT])):
                     self.player_action = 'split'
                 #surrender
                 if not any(mouse) and (keys[pygame.K_LSHIFT] and keys_just_pressed[pygame.K_s]):
@@ -314,17 +319,24 @@ class UI:
             self.help_rect = pygame.FRect(WINDOW_WIDTH-100,0,100,100)
             pygame.draw.rect(self.display_surface,COLORS['white'],self.help_rect,0,4)
             pygame.draw.rect(self.display_surface,COLORS['gray'],self.help_rect,4,4)
-            name_surf = font.render('Help',True,'black')
-            name_rect = name_surf.get_frect(center = self.help_rect.center)
-            self.display_surface.blit(name_surf,name_rect)
+            help_surf = font.render('Help',True,'black')
+            help_rect = help_surf.get_frect(center = self.help_rect.center)
+            self.display_surface.blit(help_surf,help_rect)
 
             #small window that will open if pressed for more details on the rules. Positioned below help
             self.rules_rect = pygame.FRect(WINDOW_WIDTH-100,100,100,100)
             pygame.draw.rect(self.display_surface,COLORS['white'],self.rules_rect,0,4)
             pygame.draw.rect(self.display_surface,COLORS['gray'],self.rules_rect,4,4)
-            name_surf = font.render('Rules',True,'black')
-            name_rect = name_surf.get_frect(center = self.rules_rect.center)
-            self.display_surface.blit(name_surf,name_rect)
+            rules_surf = font.render('Rules',True,'black')
+            rules_rect = rules_surf.get_frect(center = self.rules_rect.center)
+            self.display_surface.blit(rules_surf,rules_rect)
+
+            self.home_rect = pygame.FRect(WINDOW_WIDTH-100,200,100,100)
+            pygame.draw.rect(self.display_surface,COLORS['white'],self.home_rect,0,4)
+            pygame.draw.rect(self.display_surface,COLORS['gray'],self.home_rect,4,4)
+            home_surf = font.render('  Start\nScreen',True,'black')
+            home_rect = home_surf.get_frect(center = self.home_rect.center)
+            self.display_surface.blit(home_surf,home_rect)
 
         elif self.help_open:
             #controls screen
