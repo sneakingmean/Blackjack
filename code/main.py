@@ -10,7 +10,6 @@ class Game:
     def __init__(self):
         self.display_surface = pygame.display.set_mode((WINDOW_WIDTH,WINDOW_HEIGHT))
         pygame.display.set_caption('Blackjack')
-        self.clock = pygame.time.Clock()
         self.running = True #controls whether application is open
         self.game_state = 'start' #controls the state of the game(start,init,play)
         self.player_index = 0 #index of player who's turn it is
@@ -19,24 +18,24 @@ class Game:
         self.running_count = 0 #running count
         
         #Set the table min and max bets
-        self.table_min,self.table_max = 15,500
+        self.table_min,self.table_max = 15,500 #will be changed in intializer screen
 
         #imports
-        self.import_assets()
+        self.import_assets() 
 
         #groups
         self.card_sprites = pygame.sprite.Group() #cards in play for a round
         self.dealer_card_sprites = pygame.sprite.Group() #dealer cards for a round
 
         #players
-        self.players = []
+        self.players = [] #list of current players
         self.dealer = Dealer()
 
         #initialization
-        self.player_1_state, self.player_2_state, self.player_3_state = False,False,False
-        self.name_1, self.name_2, self.name_3 = 'Player 1','Player 2','Player 3'
-        self.money_1, self.money_2, self.money_3 = 0,0,0
-        self.player_1, self.player_2, self.player_3 = Player(self.name_1,self.money_1),Player(self.name_2,self.money_2),Player(self.name_3,self.money_3)
+        self.player_1_state, self.player_2_state, self.player_3_state = False,False,False #true if a player is playing
+        self.name_1, self.name_2, self.name_3 = 'Player 1','Player 2','Player 3' #names of the players. No way to change them rn
+        self.money_1, self.money_2, self.money_3 = 0,0,0 #starting money of each player
+        self.player_1, self.player_2, self.player_3 = Player(self.name_1,self.money_1),Player(self.name_2,self.money_2),Player(self.name_3,self.money_3) #player objects
         self.table = 0 #index of table chose (0-4)
         self.do_sounds = True #play sound effects
         self.do_count = False #display the outline for the count rect
@@ -44,15 +43,15 @@ class Game:
         self.do_total = False #display the current hand total
         self.num_decks = 6 #number of decks in the shoe
         self.count_rect = pygame.FRect(0,0,200,50) #rect for displaying the count
-        #will add each player if they are added in init. Money will be changed based on the table chosen
+        #will add each player if they are added in init. Money will be changed based on the table chosen (starting money=table max)
 
         #helps print the cards in the correct spot
-        self.card_width = self.card_surfs['A of Spades'][0].get_width()
-        self.card_height = self.card_surfs['A of Spades'][0].get_height()
-        self.offset = pygame.Vector2(self.card_width/2,-self.card_height/2)
+        self.card_width = self.card_surfs['A of Spades'][0].get_width() #width of a card. used for positioning
+        self.card_height = self.card_surfs['A of Spades'][0].get_height() #height of a card
+        self.offset = pygame.Vector2(self.card_width/2,-self.card_height/2) #offset of the current card played from the last one
 
         #round stages
-        self.stage = 'bet'
+        self.stage = 'bet' #controls what state the game is in ('bet','player turn' etc)
         self.current_card = None #card that has been pulled and is on a timer for when it is displayed
         self.current_result = None #last win,loss, or push that is being displayed in draw_result
         self.dealer_blackjack = False #true if dealer has blackjack
@@ -61,29 +60,29 @@ class Game:
         #timers
         deal_delay = 600
         stage_delay = 1200
-        self.player_deal_timer = Timer(deal_delay,func=self.add_card)
-        self.dealer_deal_timer = Timer(deal_delay,func=self.add_dealer_card)
-        self.stage_change_timer = Timer(stage_delay)
-        self.flip_timer = Timer(deal_delay,func=self.flip_card)
-        self.result_timer = Timer(stage_delay,func=self.change_player_index)
-        self.bust_sound_timer = Timer(deal_delay,func=self.audio['bust'].play)
-        self.shuffle_timer = Timer(stage_delay)
+        self.player_deal_timer = Timer(deal_delay,func=self.add_card) #timer activated when a card is dealt to the player
+        self.dealer_deal_timer = Timer(deal_delay,func=self.add_dealer_card) #timer activated when a card is dealt to the dealer
+        self.stage_change_timer = Timer(stage_delay) #timer used when self.stage changes and a few other times when a generic timer is needed
+        self.flip_timer = Timer(deal_delay,func=self.flip_card) #activated when a card is being flipped
+        self.result_timer = Timer(stage_delay,func=self.change_player_index) #activated when a player loss/push/win is shown on screen
+        self.bust_sound_timer = Timer(deal_delay,func=self.audio['bust'].play) #timer for playing the bust audio
+        self.shuffle_timer = Timer(stage_delay) #timer for when the shoe is shuffled
 
         self.timers = [self.player_deal_timer,self.dealer_deal_timer,self.stage_change_timer,self.flip_timer,self.result_timer,self.bust_sound_timer,self.shuffle_timer]
 
         self.audio['here_comes_the_money'].play(-1)
 
     def import_assets(self):
-        self.card_surfs = card_importer('images','top_down','cards',color='blue')
-        self.chip_surfs = chip_importer('images','top_down','chips.png')
+        self.card_surfs = card_importer('images','top_down','cards',color='blue') #dict with keys = card name (Ace of Spades), values being a front and back surf
+        self.chip_surfs = chip_importer('images','top_down','chips.png') #dict with keys = chip values, values being surfs
         #table graphics
-        self.table_surfs = table_importer('images','top_down','tables')
-        self.table_rect = self.table_surfs[0].get_frect(center = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2-100))
+        self.table_surfs = table_importer('images','top_down','tables') #dict with keys = name of table, values = surf
+        self.table_rect = self.table_surfs[0].get_frect(center = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2-100)) #same for each table
         #start screen
-        self.start_screen_surf = pygame.image.load(join('images','top_down','start_screen.png'))
+        self.start_screen_surf = pygame.image.load(join('images','top_down','start_screen.png')) 
         self.start_screen_rect = self.start_screen_surf.get_frect(topleft = (0,0))
 
-        self.audio = audio_importer('audio')
+        self.audio = audio_importer('audio') #dict of audio files
         #volumes are automatically set to .2
         self.audio['deal'].set_volume(.3)
         self.audio['ambience'].set_volume(.1)
@@ -104,11 +103,13 @@ class Game:
         start_button_words_rect = start_button_words_surf.get_frect(center=self.start_button_rect.center)
         self.display_surface.blit(start_button_words_surf,start_button_words_rect)
 
+    #check if the start button has been pressed from the start screen
     def check_start(self):
         mouse_pos = pygame.mouse.get_pos()
         if pygame.mouse.get_pressed()[0] and self.start_button_rect.collidepoint(mouse_pos):
             self.game_state = 'init'
 
+    #screen for initializing the game
     def draw_initializer(self):
          #background
         self.display_surface.fill(COLORS['table_1'])
@@ -125,6 +126,7 @@ class Game:
         self.player_2_rect = pygame.FRect(WINDOW_WIDTH/2-110,150,220,100)
         self.player_3_rect = pygame.FRect(WINDOW_WIDTH/2+290,150,220,100)        
 
+        #player rects will be white if not clicked, green when clicked
         #player 1
         if self.player_1_state == False:
             pygame.draw.rect(self.display_surface,COLORS['white'],self.player_1_rect,0,4)
@@ -159,6 +161,7 @@ class Game:
         self.display_surface.blit(player_3_name_surf,player_3_name_rect)
 
         #table
+        #the selected table will be highlighted green
         rect = pygame.FRect(WINDOW_WIDTH/2-475,250,150,180)
         tables_section_surf = section_font.render('Table',True,COLORS['white'])
         tables_section_rect = tables_section_surf.get_frect(center=rect.center)
@@ -272,6 +275,7 @@ class Game:
         start_button_words_rect = start_button_words_surf.get_frect(center=self.start_button_rect.center)
         self.display_surface.blit(start_button_words_surf,start_button_words_rect)
 
+    #checks when player is done setting up the game and is ready to start playing
     def check_initializer(self):
         mouse_pos = pygame.mouse.get_pos()
         if pygame.mouse.get_just_pressed()[0] and self.player_1_rect.collidepoint(mouse_pos): #player 1
@@ -298,7 +302,7 @@ class Game:
             self.do_count = not self.do_count
         elif pygame.mouse.get_just_pressed()[0] and self.total_rect.collidepoint(mouse_pos): #show totals
             self.do_total = not self.do_total
-        elif pygame.mouse.get_just_pressed()[0] and self.shoe_rect.collidepoint(mouse_pos): #shoe powerup
+        elif pygame.mouse.get_just_pressed()[0] and self.shoe_rect.collidepoint(mouse_pos): #decks in shoe
             self.num_decks = max((self.num_decks+2)%10,2)
 
         elif pygame.mouse.get_just_pressed()[0] and self.start_button_rect.collidepoint(mouse_pos):
@@ -322,6 +326,7 @@ class Game:
                 self.audio['here_comes_the_money'].stop()
                 self.audio['ambience'].play(-1) if self.do_sounds else False 
 
+    #draws the correct table graphic based on the table min
     def draw_table(self):
         match self.table_min:
             case 15:
@@ -343,20 +348,22 @@ class Game:
         self.display_surface.fill(color)        
         self.display_surface.blit(table_surf,self.table_rect)
 
+    #draws the current bet on each hand
     def draw_current_bets(self):
         font = pygame.font.Font(FONT_FILE,20)
-
+        
         for i,player in enumerate(self.players):
-            color = COLORS['white'] if self.player_index==i and not self.player_deal_timer else COLORS['gray']
+            color = COLORS['white'] if self.player_index==i and not self.player_deal_timer else COLORS['gray'] #highlight the bet of the current hand being played
             for j,hand in enumerate(player.hands.values()):
+                #show player's bet
                 bet_pos = self.placements[i]+self.current_hand_offset(player.num_hands-1,j)+pygame.Vector2(0,5)
                 bet_shown = hand.bet if not hand.bust else hand.last_bet
                 bet_surf = font.render(f'${bet_shown}',True,color)
                 bet_rect = bet_surf.get_frect(midtop = bet_pos)
                 self.display_surface.blit(bet_surf,bet_rect)
 
-                if self.do_total and hand.total>0 and not self.player_deal_timer:
-                    # total_pos = hand.cards[-1].rect.move(0,-20).midtop
+                #show a player's total
+                if self.do_total and hand.total>0 and not self.player_deal_timer: 
                     rect = pygame.FRect((hand.cards[-1].rect.move(-15,-23).midtop),(30,23))
                     pygame.draw.rect(self.display_surface,COLORS['white'],rect,border_radius=3)
                     pygame.draw.rect(self.display_surface,COLORS['gray'],rect,3,3)
@@ -369,7 +376,7 @@ class Game:
         if self.do_total and self.dealer.total>0 and (not self.dealer_deal_timer and not self.flip_timer):
             pygame.draw.rect(self.display_surface,COLORS['white'],dealer_rect,border_radius=3)
             pygame.draw.rect(self.display_surface,COLORS['gray'],dealer_rect,3,3)
-            if self.dealer.cards[0].face_up: shown_total = self.dealer.total
+            if self.dealer.cards[0].face_up: shown_total = self.dealer.total #don't add face down hole card to total
             else:
                 if len(self.dealer.cards)==2: 
                     if self.dealer.cards[1].get_value()==1: shown_total=11
@@ -379,19 +386,23 @@ class Game:
             dealer_total_rect = dealer_total_surf.get_frect(center = dealer_rect.center)
             self.display_surface.blit(dealer_total_surf,dealer_total_rect)
 
+    #draws each players name and total money
     def draw_players(self):
         font = pygame.font.Font(FONT_FILE,20)
 
         for i,player in enumerate(self.players):
+            #highlight current player
             color = COLORS['white'] if self.player_index==i and not self.player_deal_timer else COLORS['gray']
             player_surf = font.render(f'{player.name}',True,color)
             player_rect = player_surf.get_frect(midtop = self.placements[i]+pygame.Vector2(0,30))
             self.display_surface.blit(player_surf,player_rect)
 
+            #money
             money_surf = font.render(f'${player.money}',True,color)
             money_rect = money_surf.get_frect(midtop = self.placements[i]+pygame.Vector2(0,60))
             self.display_surface.blit(money_surf,money_rect)
 
+    #displays the result (win,push,loss) for each hand and how much was won or lost
     def draw_result(self):
         rect = pygame.FRect(WINDOW_WIDTH/2-150,WINDOW_HEIGHT/2-50,300,100)
         pygame.draw.rect(self.display_surface,COLORS['white'],rect,0,4)
@@ -406,18 +417,18 @@ class Game:
 
         #result
         money_pos = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2+25)
-        if self.current_result>0: money_surf = font.render(f'Win ${self.current_result}',True,'green')
-        elif self.current_result==0: money_surf = font.render(f'Push',True,COLORS['gray']) 
-        else: money_surf = font.render(f'Lose ${-self.current_result}',True,COLORS['red'])
+        if self.current_result>0: money_surf = font.render(f'Win ${self.current_result}',True,'green') #win
+        elif self.current_result==0: money_surf = font.render(f'Push',True,COLORS['gray']) #push
+        else: money_surf = font.render(f'Lose ${-self.current_result}',True,COLORS['red']) #lose
             
         money_rect = money_surf.get_frect(center = money_pos)
         self.display_surface.blit(money_surf,money_rect)
         
+    #displays the running and true counts
     def draw_count(self):
         font = pygame.font.Font(FONT_FILE,20)
         #display counts
-        
-        if self.show_count:
+        if self.show_count: #true if the count rect is fully open, not minimized
             self.count_rect = self.count_rect = pygame.FRect(0,0,200,50)
             pygame.draw.rect(self.display_surface,COLORS['white'],self.count_rect,0,4)
             pygame.draw.rect(self.display_surface,COLORS['gray'],self.count_rect,4,4)
@@ -427,6 +438,9 @@ class Game:
             true_count_surf = font.render(f'True Count: {max(int(self.running_count/(self.shoe.get_num_cards_left()/52)),0)}',True,'black')
             true_count_rect = true_count_surf.get_frect(bottomleft = self.count_rect.move(10,0).bottomleft)
             self.display_surface.blit(true_count_surf,true_count_rect)
+            arrow_surf = font.render('<',True,'black')
+            arrow_rect = arrow_surf.get_frect(center = self.count_rect.move(-9,0).midright)
+            self.display_surface.blit(arrow_surf,arrow_rect)
         else:
             self.count_rect = self.count_rect = pygame.FRect(0,0,20,50)
             pygame.draw.rect(self.display_surface,COLORS['white'],self.count_rect,0,4)
@@ -435,30 +449,32 @@ class Game:
             arrow_rect = arrow_surf.get_frect(center = self.count_rect.center)
             self.display_surface.blit(arrow_surf,arrow_rect)
 
+    #checks if the player minimized the count rect. Only applicable when count has been enabled
     def check_draw_count(self):
         if pygame.mouse.get_just_pressed()[0] and self.count_rect.collidepoint(pygame.mouse.get_pos()):
             self.show_count = not self.show_count
 
+    #gets the starting position on the screen for each player. Changes based on how many players there are
     def get_card_positions(self):
         #positioning of cards
         self.dealer_pos = pygame.Vector2(WINDOW_WIDTH/2-self.card_width,150)
         bottom_buffer = 100 #bottom y position of first card dealt to the middle player (pos 3 of 5)
-        start_pos = pygame.Vector2(WINDOW_WIDTH/2,WINDOW_HEIGHT-bottom_buffer)
+        start_pos = pygame.Vector2(WINDOW_WIDTH/2,WINDOW_HEIGHT-bottom_buffer) #position of the middle player
 
         self.placements = {} #hold vectors of player positions based on index
         x = WINDOW_WIDTH/3.5 #x offset from player position 2 (directly below dealer)
         y = -50 #y offset from player position 2
 
-        if len(self.players)%2==0:
+        if len(self.players)%2==0: #%2 comes from the fact that an even number of players will have 2 bottom players (largest y value) while an odd number will only have 1
             start_pos -= pygame.Vector2(x/2,0)
             for i in range(len(self.players)):
-                if i == len(self.players)/2 or i == len(self.players)/2-1: 
+                if i == len(self.players)/2 or i == len(self.players)/2-1: #middle players
                     y=0
                     self.placements[i] = start_pos + (int(len(self.players)/2)-i)*pygame.Vector2(x,y)
-                elif len(self.players)/2-i < 0: 
+                elif len(self.players)/2-i < 0: #left player
                     y=50
                     self.placements[i] = start_pos + (int(len(self.players)/2)-i)*pygame.Vector2(x,y)
-                else:
+                else: #right player
                     y*=(int(len(self.players)/2)-i-1)/(int(len(self.players)/2)-i)
                     self.placements[i] = start_pos + (int(len(self.players)/2)-i)*pygame.Vector2(x,y)
         else:
@@ -466,9 +482,12 @@ class Game:
                 if int(len(self.players)/2)-i < 0: y=50
                 self.placements[i] = start_pos + (int(len(self.players)/2)-i)*pygame.Vector2(x,y)
 
+    #adds offset for when a player has split and has multiple hands
     def current_hand_offset(self,num_hands,hand):
         return pygame.Vector2((-1*num_hands + 2*hand)*self.card_width,0) #ratio of first coefficient to second should be 1:2 to keep cards centered
-
+                            #adjust placement  #adds offset for each additional hand
+    
+    #takes insurance bets from players if applicable. Same logic as bet()
     def offer_insurance(self):
         if self.num_insurance != len(self.players):
             if not self.players[self.player_index].insurance and self.players[self.player_index].hands[0].bet>0:
@@ -484,14 +503,16 @@ class Game:
             self.insurance = False
             self.stage = 'checking_blackjacks' #move onto the deal when all bets are placed
 
+    #checks if dealer has blackjack
     def check_dealer_blackjack(self,val):
         if self.dealer.cards[0].get_value()==val: 
             self.dealer_blackjack = True
 
+    #checks if each player has blackjack
     def check_player_blackjacks(self):
         if not self.result_timer and not self.flip_timer:
             if self.player_index>=len(self.players):
-                if self.dealer_blackjack: self.reset()
+                if self.dealer_blackjack: self.reset() #end the hand if the dealer has blackjack and all the player's blackjacks have been checked
                 else:
                     self.stage = 'player_turn'
                     self.player_index=0
@@ -514,13 +535,14 @@ class Game:
                     self.players[self.player_index].money += 3*self.players[self.player_index].insurance_amount
                     current_hand.reset()
                     self.result_timer.activate()
-                elif self.players[self.player_index].insurance_amount>0:
+                elif self.players[self.player_index].insurance_amount>0: #no dealer blackjack and player has less than 21
                     self.current_result = -self.players[self.player_index].insurance_amount
                     self.players[self.player_index].insurance_amount = 0
                     self.result_timer.activate()
                 else:
                     self.player_index+=1
-                        
+
+    #takes player bets for the round             
     def bet(self):
         if not self.shuffle_timer and not self.result_timer:
             if self.num_bets_placed != len(self.players):
@@ -535,7 +557,7 @@ class Game:
 
             elif self.stage=='bet': self.stage = 'deal' #move onto the deal when all bets are place
         else: 
-            if self.shoe.get_num_cards_left()<self.shoe.cut_card:
+            if self.shoe.get_num_cards_left()<self.shoe.cut_card: #shuffle the shoe
                 self.shoe.reset(self.card_surfs,self.num_decks)
                 self.audio['shuffle'].play()
                 self.running_count = 0
@@ -546,7 +568,8 @@ class Game:
             surf = font.render('Shuffling Shoe',True,'black')
             rect = surf.get_frect(center = rect.center)
             self.display_surface.blit(surf,rect)
-            
+
+    #deals out 2 cards to each player and the dealer    
     def deal(self):
         if not self.player_deal_timer and not self.dealer_deal_timer:
             if self.player_index < len(self.players):
@@ -565,7 +588,7 @@ class Game:
                 self.current_card.assign_rect(pos)
                 self.dealer.add_card(self.current_card)
                 self.dealer_deal_timer.activate()
-                if len(self.dealer.cards) == 1: self.current_card.flip()    
+                if len(self.dealer.cards) == 1: self.current_card.flip() 
                 elif len(self.dealer.cards) == 2:
                     if self.dealer.cards[1].get_value() == 1: #check for dealer upcard being an ace to offer insurance
                         self.insurance = True
@@ -575,6 +598,7 @@ class Game:
                     self.stage = 'checking_blackjacks' #check if any player has blackjack
                 self.player_index=0
 
+    #player's turn where he decides what action to take after being dealt his initial cards
     def player_turn(self):
         if not (self.stage_change_timer or self.result_timer) and not self.player_index >= len(self.players): #make sure it's not dealer's turn
             if self.players[self.player_index].hands[self.players[self.player_index].hand].bet>0: #make sure the player has bet this hand
@@ -604,7 +628,7 @@ class Game:
                                 if self.do_sounds: self.audio['stand'].play()
                                 if self.players[self.player_index].hand == self.players[self.player_index].num_hands-1: self.player_index += 1 
                                 else: self.players[self.player_index].hand+=1
-                            case 'up_double':
+                            case 'up_double': #face up
                                 if self.players[self.player_index].money > 0 and current_hand.get_len()==2:
                                     #alter bet
                                     double_amount = 0
@@ -623,7 +647,7 @@ class Game:
                                     if self.players[self.player_index].hand == self.players[self.player_index].num_hands-1: self.player_index += 1 
                                     else: self.players[self.player_index].hand+=1
                                 elif self.do_sounds: self.audio['invalid_move'].play()
-                            case 'down_double':
+                            case 'down_double': #face down
                                 if self.players[self.player_index].money > 0 and current_hand.get_len()==2:
                                     #alter bet
                                     double_amount = 0
@@ -684,6 +708,7 @@ class Game:
                 for player in self.players: player.hand = 0 #reset hand so that on evaluate we can compare hands to the dealer in the right order
                 self.stage_change_timer.activate()
     
+    #deals the dealer remaining cards until he reaches 17 or busts. Only flips his hole card if all the other players have bust,blackjack,surrender
     def dealer_turn(self):
         if not self.stage_change_timer:
             if not self.flip_timer and len(self.dealer.cards) == 2 and not self.dealer.cards[0].face_up:
@@ -691,7 +716,7 @@ class Game:
 
             if not self.flip_timer and not self.dealer_deal_timer:
                 if self.num_hands_left>0:
-                    if self.dealer.total>=17: 
+                    if self.dealer.total>=17: #stand on s17
                         self.stage = 'evaluate'
                         self.stage_change_timer.activate()
                     else:
@@ -704,6 +729,7 @@ class Game:
                     self.stage = 'evaluate'
                     self.stage_change_timer.activate()
 
+    #keeps track of what stage of the round the game is at and calls functions to run at each stage
     def get_stage(self):
         if not self.result_timer: #for when blackjacks are checked and results put up
             match self.stage:
@@ -729,6 +755,7 @@ class Game:
                     self.dealer_turn()
                 case 'evaluate':self.evaluate()
 
+    #evaluates the result of a round by comparing dealer and player hands
     def evaluate(self):
         if self.stage == 'evaluate':
             if not self.result_timer and not self.stage_change_timer:
@@ -742,19 +769,20 @@ class Game:
                             if current_hand.bust: self.bust_sound_timer.activate()
                             self.stage_change_timer.activate()
                         if not self.stage_change_timer:
-                            if (self.dealer.total < current_hand.total or self.dealer.bust) and not current_hand.bust:
+                            if (self.dealer.total < current_hand.total or self.dealer.bust) and not current_hand.bust: #win
                                 self.current_result = current_hand.bet
                                 self.players[self.player_index].money += 2*current_hand.bet
-                            elif self.dealer.total == current_hand.total and not current_hand.bust:
+                            elif self.dealer.total == current_hand.total and not current_hand.bust: #push
                                 self.current_result = 0
                                 self.players[self.player_index].money += current_hand.bet
-                            else:
+                            else: #loss
                                 self.current_result = min(-current_hand.bet,-current_hand.last_bet)
                             current_hand.bet = 0
                             self.result_timer.activate()
                     else:
                         self.change_player_index()
 
+    #resets all hands and bets for the next round
     def reset(self):
         #reset stage variables
         self.stage = 'bet'
@@ -789,12 +817,14 @@ class Game:
         #reset game if no players are left
         if self.num_hands_left == 0: self.restart()
 
+    #restarts the game from the start screen
     def restart(self):
         self.audio['ambience'].stop()
         self.__init__()
         self.game_state = 'initialize'
 
 #Functions triggered by timers
+    #adds a card to the player_card_sprites
     def add_card(self):
         self.card_sprites.add(self.current_card)
         if self.current_card.get_value()==1 or self.current_card.get_value()==10:
@@ -803,6 +833,7 @@ class Game:
             self.running_count+=1
         if self.do_sounds: self.audio['deal'].play()
 
+    #adds a card to the dealer_card_sprites
     def add_dealer_card(self):
         self.dealer_card_sprites.add(self.current_card)
         if self.current_card.face_up:
@@ -812,6 +843,7 @@ class Game:
                 self.running_count+=1
         if self.do_sounds: self.audio['deal'].play()
 
+    #flips the dealers hole card
     def flip_card(self):
         self.dealer.cards[0].flip()
         if self.dealer.cards[0].get_value()==1 or self.dealer.cards[0].get_value()==10:
@@ -820,16 +852,17 @@ class Game:
             self.running_count+=1
         if self.do_sounds: self.audio['deal'].play()
 
+    #changes player index or changes a player's hand index if he has more hands left to play
     def change_player_index(self):
         if self.stage == 'evaluate':dir=-1
         else: dir=1
 
         if self.players[self.player_index].hand == self.players[self.player_index].num_hands-1: self.player_index += dir
         elif self.players[self.player_index].hand < self.players[self.player_index].num_hands-1: self.players[self.player_index].hand+=1
-            
+
+    #runs the game  
     def run(self):
         while self.running:
-            dt = self.clock.tick() / 1000
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
@@ -847,14 +880,15 @@ class Game:
                 self.dealer_card_sprites.draw(self.display_surface)
                 if self.result_timer and self.player_index>=0:
                     self.draw_result()
+
                 self.ui.update(self.player_index)
                 for timer in self.timers:
                     timer.update()
                 if self.ui.return_home: self.restart()
-            elif self.game_state == 'init':
+            elif self.game_state == 'init': #initializer screen
                 self.draw_initializer()
                 self.check_initializer()
-            else:
+            else: #start screen
                 self.draw_start_screen()
                 self.check_start()
             pygame.display.update()

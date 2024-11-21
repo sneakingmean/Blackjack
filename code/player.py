@@ -16,6 +16,7 @@ class Player():
         self.hand = 0 #hand that is currently being played by the player
         self.num_hands = 0 #number of hands the player has
 
+    #money can't be less than 0
     @property
     def money(self):
         return self._money
@@ -24,18 +25,19 @@ class Player():
     def money(self,value):
         self._money = max(value,0)
 
+    #returns whether a bet is valid or not and places the bet
     def place_bet(self,bet=0,insurance=False):
         if insurance == True and bet>0:
             bet = int(self.hands[0].bet/2)
             bet = int((bet-bet%1)/5)*5 #round down bets to the nearest multiple of 5
         
-        if bet>self.money: return False
-        elif insurance == True:
+        if bet>self.money: return False #not enough money
+        elif insurance == True: #insurance bet added
             self.insurance_amount = bet
             self.money -= self.insurance_amount
             self.insurance=True
             return True
-        else: 
+        else: #normal bet
             self.bet_placed = True
             self.current_bet = bet
             self.money -= self.current_bet
@@ -47,7 +49,7 @@ class Player():
     def add_card(self,card,hand=0):
         if hand in self.hands.keys():
             self.hands[hand].add_card(card)
-        else:
+        else: #make a new hand if the card is from a split
             self.hands[hand] = Hand(self.current_bet)
             self.hands[hand].add_card(card)
             self.num_hands+=1    

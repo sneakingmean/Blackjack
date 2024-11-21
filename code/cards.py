@@ -23,9 +23,11 @@ class Card(pygame.sprite.Sprite):
         else:
             return 1
         
+    #set the position of the card when it is dealt
     def assign_rect(self,pos):
         self.rect = self.image.get_frect(midbottom=pos)
 
+    #flips a card. Maintains the rotation
     def flip(self):
         if self.face_up:
             self.image = self.back_surf
@@ -37,6 +39,7 @@ class Card(pygame.sprite.Sprite):
             else:
                 self.image = self.front_surf
 
+    #rotates a card. Will alwyays show the front of a card
     def rotate(self):
         if self.face_up: self.image = pygame.transform.rotozoom(self.front_surf,90,1)
         else: self.image = pygame.transform.rotozoom(self.back_surf,90,1)
@@ -54,10 +57,12 @@ class Hand():
         self.bust = False #is player currently bust
         self.last_bet = 0 #set value after player busts to be used when the loss is displayed
 
+    #add a card to the hand and count it if face up
     def add_card(self,card):
         self.cards.append(card)
         self.counter()
 
+    #remove a card from the hand. Used for splits
     def remove_card(self):
         card = self.cards.pop()
         
@@ -69,10 +74,11 @@ class Hand():
 
         return card
 
+    #counts the total of the hand and is called as each card is added
     def counter(self):
-        if self.cards[self.index].face_up:
+        if self.cards[self.index].face_up: #only count if face up
             value = self.cards[self.index].get_value()
-            if value==1:
+            if value==1: #get the value of an ace
                 if self.total+11>21:
                     self.total+=value
                 else: 
@@ -80,7 +86,7 @@ class Hand():
                     self.num_aces+=1
             else:
                 if self.total + value > 21:
-                    if self.num_aces > 0:
+                    if self.num_aces > 0: #make a soft ace hard
                         self.total -=10
                         self.num_aces-=1
                 self.total+=value
@@ -91,9 +97,11 @@ class Hand():
                 self.bust=True
                 self.last_bet=self.bet
 
+    #get the number of cards in the hand
     def get_len(self):
         return len(self.cards)        
     
+    #reset the hand
     def reset(self):
         self.bet=0
         self.cards.clear()
@@ -126,5 +134,6 @@ class Shoe():
     def get_num_cards_left(self):
         return len(self.shoe)
     
+    #call the initilize function
     def reset(self,surfs,num_decks):
         self.__init__(surfs,num_decks)

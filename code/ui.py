@@ -31,30 +31,31 @@ class UI:
         self.insurance_try = None ##if an invalid insurance bet is attempted, will turn false, then reset after 1 frame. Will turn true if valid insurance bet is placed
 
         #timer
-        self.double_click_timer = Timer(300)
+        self.double_click_timer = Timer(300) #amount of time for a second click to be registered as a double click
 
+    #gets user input 
     def input(self):
-        self.player_action = None
+        self.player_action = None #is used for main to get what action the player chose
         mouse_pos = pygame.mouse.get_pos()
         if self.state == 'bet':
-            if pygame.mouse.get_just_pressed()[0]:
+            if pygame.mouse.get_just_pressed()[0]: #add to bet
                 for i,chip in enumerate(self.chips.values()):
                     if chip[1].collidepoint(mouse_pos):
-                        self.bet = min(self.bet+self.chip_values[i],self.table_max,self.players[self.player_index].money)
-                if self.reset_rect_hitbox.collidepoint(mouse_pos):
+                        self.bet = min(self.bet+self.chip_values[i],self.table_max,self.players[self.player_index].money) #minimizes bet based on what is allowed
+                if self.reset_rect_hitbox.collidepoint(mouse_pos):#reset bet
                     self.bet = 0
-                elif self.min_bet_rect_hitbox.collidepoint(mouse_pos):
+                elif self.min_bet_rect_hitbox.collidepoint(mouse_pos):#set bet to table min
                     self.bet = self.table_min
-                elif self.max_bet_rect_hitbox.collidepoint(mouse_pos):
+                elif self.max_bet_rect_hitbox.collidepoint(mouse_pos):#set bet to table max or player.money if player.money<table_max
                     self.bet = min(self.table_max,self.players[self.player_index].money)
 
-            if pygame.key.get_just_pressed()[pygame.K_SPACE] or pygame.mouse.get_just_pressed()[2]:
+            if pygame.key.get_just_pressed()[pygame.K_SPACE] or pygame.mouse.get_just_pressed()[2]:#finalize bet
                 if self.try_bet(self.bet):
                     self.bet_try=True
                     self.bet = 0
                     self.state='off'
                 else: 
-                    self.bet_try = False
+                    self.bet_try = False 
         elif self.state == 'player_turn':
             if not self.help_open and not self.rules_open:
                 mouse = pygame.mouse.get_just_pressed()
@@ -67,25 +68,25 @@ class UI:
                         #l click
                         if mouse[0] and not (mouse[1] or mouse[2]):
                             if self.double_click_timer:
-                                if self.first_mouse[0]:
+                                if self.first_mouse[0]: #second click l click
                                     self.player_action = 'up_double'
                                     self.first_mouse=None
                                     self.double_click_timer.deactivate()
-                                elif self.first_mouse[2]:
+                                elif self.first_mouse[2]: #second click r click
                                     self.player_action = 'split'
                                     self.first_mouse=None
                                     self.double_click_timer.deactivate()
                             else:
-                                self.first_mouse = mouse
+                                self.first_mouse = mouse #saves the first mouse click
                                 self.double_click_timer.activate()
 
                         #r click
                         if mouse[2] and not (mouse[0] or mouse[1]):
-                            if self.double_click_timer and self.first_mouse[0]:
+                            if self.double_click_timer and self.first_mouse[0]:#second click l click
                                 self.player_action = 'split'
                                 self.first_mouse=None
                                 self.double_click_timer.deactivate()
-                            elif self.double_click_timer and self.first_mouse[2]:
+                            elif self.double_click_timer and self.first_mouse[2]:#second click r click
                                 self.player_action = 'down_double'
                                 self.first_mouse=None
                                 self.double_click_timer.deactivate()
@@ -258,7 +259,7 @@ class UI:
         self.display_surface.blit(reset_surf,reset_rect)
         pygame.draw.rect(self.display_surface,COLORS['black'],self.reset_rect_hitbox,4,4)
 
-    def try_bet(self,bet=0,insurance=False):
+    def try_bet(self,bet=0,insurance=False): #returns true if a bet is allowed to be placed, false otherwise
         if insurance:
             return self.players[self.player_index].place_bet(bet,insurance=True)
         else:
@@ -331,6 +332,7 @@ class UI:
             rules_rect = rules_surf.get_frect(center = self.rules_rect.center)
             self.display_surface.blit(rules_surf,rules_rect)
 
+            #window for restarting the game
             self.home_rect = pygame.FRect(WINDOW_WIDTH-100,200,100,100)
             pygame.draw.rect(self.display_surface,COLORS['white'],self.home_rect,0,4)
             pygame.draw.rect(self.display_surface,COLORS['gray'],self.home_rect,4,4)
