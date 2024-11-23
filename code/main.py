@@ -5,6 +5,7 @@ from cards import *
 from ui import UI
 from random import randint,choice,shuffle
 from custom_timer import Timer
+from math import ceil,floor
 
 class Game:
     def __init__(self):
@@ -435,7 +436,7 @@ class Game:
             running_count_surf = font.render(f'Running Count: {self.running_count}',True,'black')
             running_count_rect = running_count_surf.get_frect(topleft = self.count_rect.move(10,0).topleft)
             self.display_surface.blit(running_count_surf,running_count_rect)
-            true_count_surf = font.render(f'True Count: {max(int(self.running_count/(self.shoe.get_num_cards_left()/52)),0)}',True,'black')
+            true_count_surf = font.render(f'True Count: {max(floor(self.running_count/ceil(self.shoe.get_num_cards_left()/52)),0)}',True,'black')
             true_count_rect = true_count_surf.get_frect(bottomleft = self.count_rect.move(10,0).bottomleft)
             self.display_surface.blit(true_count_surf,true_count_rect)
             arrow_surf = font.render('<',True,'black')
@@ -766,6 +767,8 @@ class Game:
                         if not current_hand.cards[-1].face_up: #flip any doubles that are face down
                             not current_hand.cards[-1].flip()
                             current_hand.counter()
+                            if current_hand.cards[-1].get_value()==1 or current_hand.cards[-1].get_value()==10: self.running_count-=1
+                            elif current_hand.cards[-1].get_value()<=6: self.running_count+=1
                             if current_hand.bust: self.bust_sound_timer.activate()
                             self.stage_change_timer.activate()
                         if not self.stage_change_timer:
@@ -827,10 +830,11 @@ class Game:
     #adds a card to the player_card_sprites
     def add_card(self):
         self.card_sprites.add(self.current_card)
-        if self.current_card.get_value()==1 or self.current_card.get_value()==10:
-            self.running_count -=1
-        elif self.current_card.get_value()<7:
-            self.running_count+=1
+        if self.current_card.face_up:
+            if self.current_card.get_value()==1 or self.current_card.get_value()==10:
+                self.running_count -=1
+            elif self.current_card.get_value()<7:
+                self.running_count+=1
         if self.do_sounds: self.audio['deal'].play()
 
     #adds a card to the dealer_card_sprites
