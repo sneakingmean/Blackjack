@@ -3,7 +3,7 @@ from os.path import join
 from os import walk
 pygame.init()
 
-WINDOW_WIDTH, WINDOW_HEIGHT = 1280,720 
+DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT = 1280,720
 
 COLORS = {
     'table_1': '#007639',

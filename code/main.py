@@ -8,9 +8,13 @@ from custom_timer import Timer
 from math import ceil,floor
 
 class Game:
-    def __init__(self):
-        self.display_surface = pygame.display.set_mode((WINDOW_WIDTH,WINDOW_HEIGHT))
+    def __init__(self,fullscreen=False):
+        if fullscreen: self.display_surface = pygame.display.set_mode((0,0),pygame.FULLSCREEN)
+        else: self.display_surface = pygame.display.set_mode((DEFAULT_WINDOW_WIDTH,DEFAULT_WINDOW_HEIGHT))
         pygame.display.set_caption('Blackjack')
+        self.fullscreen = fullscreen #boolean for detecting whether DEFAULT_WINDOW is fullscreen or not
+        self.dimensions = self.display_surface.get_size() #current dimensions of the DEFAULT_WINDOW
+        self.fullscreen_dimensions = self.display_surface.get_size() if fullscreen else (0,0) #record size of fullscreen. Will update once DEFAULT_WINDOW is made fullscreen
         self.running = True #controls whether application is open
         self.game_state = 'start' #controls the state of the game(start,init,play)
         self.player_index = 0 #index of player who's turn it is
@@ -33,6 +37,11 @@ class Game:
         self.dealer = Dealer()
 
         #initialization
+        self.names = ['Badlands','Donald','Dana','Radahn','Leo','Kamala','Joe','Thiccems','Jesus',
+                      'God','The Devil','The Judge','Smough','Gwyn','Larry Lawton','Big Ben',
+                      'Gael','Andre','Solaire','V','Geralt','LoadMaster','Nameless',
+                      'Raskolnikov','Seldon','Degen','Dealer','Shark','The Diddler',
+                      'Cheater','Missy','Murphy','Tucker','Ace','Hershey','Milo','Roxy','Gambler']
         self.player_1_state, self.player_2_state, self.player_3_state = False,False,False #true if a player is playing
         self.name_1, self.name_2, self.name_3 = 'Player 1','Player 2','Player 3' #names of the players. No way to change them rn
         self.money_1, self.money_2, self.money_3 = 0,0,0 #starting money of each player
@@ -41,7 +50,7 @@ class Game:
         self.do_sounds = True #play sound effects
         self.do_count = False #display the outline for the count rect
         self.show_count = True #display the count in the count rect
-        self.do_total = False #display the current hand total
+        self.do_total = True #display the current hand total
         self.num_decks = 6 #number of decks in the shoe
         self.count_rect = pygame.FRect(0,0,200,50) #rect for displaying the count
         #will add each player if they are added in init. Money will be changed based on the table chosen (starting money=table max)
@@ -76,13 +85,18 @@ class Game:
     def import_assets(self):
         self.card_surfs = card_importer('images','top_down','cards',color='blue') #dict with keys = card name (Ace of Spades), values being a front and back surf
         self.chip_surfs = chip_importer('images','top_down','chips.png') #dict with keys = chip values, values being surfs
+
         #table graphics
         self.table_surfs = table_importer('images','top_down','tables') #dict with keys = name of table, values = surf
-        self.table_rect = self.table_surfs[0].get_frect(center = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2-100)) #same for each table
+        self.table_rect = self.table_surfs[0].get_frect(center = (self.dimensions[0]*.5,self.dimensions[1]*.361)) #same for each table
+        self.table_rect_full = None
+
         #start screen
+        #default
         self.start_screen_surf = pygame.image.load(join('images','top_down','start_screen.png')) 
         self.start_screen_rect = self.start_screen_surf.get_frect(topleft = (0,0))
-
+        self.start_screen_surf_full = None
+        
         self.audio = audio_importer('audio') #dict of audio files
         #volumes are automatically set to .2
         self.audio['deal'].set_volume(.3)
@@ -93,10 +107,21 @@ class Game:
     def draw_start_screen(self):
         #background
         self.display_surface.fill('black')
-        self.display_surface.blit(self.start_screen_surf,self.start_screen_rect)
+        if self.fullscreen: 
+            if self.start_screen_surf_full == None:
+                self.start_screen_surf_full = pygame.transform.smoothscale(self.start_screen_surf,self.fullscreen_dimensions)
+                self.start_screen_rect_full = self.start_screen_surf_full.get_frect(topleft=(0,0))
+            self.display_surface.blit(self.start_screen_surf_full,self.start_screen_rect_full)
+
+        else:
+            self.display_surface.blit(self.start_screen_surf,self.start_screen_rect)
+            fullscreen_font = pygame.font.Font(FONT_FILE,20)
+            fullscreen_surf = fullscreen_font.render('Press F for Fullscreen',True,COLORS['white'])
+            fullscreen_rect = fullscreen_surf.get_frect(center=(self.dimensions[0]*.5,self.dimensions[1]*.05))
+            self.display_surface.blit(fullscreen_surf,fullscreen_rect)
 
         #start button
-        self.start_button_rect = pygame.FRect(WINDOW_WIDTH/2+250,WINDOW_HEIGHT/2+250,200,100)
+        self.start_button_rect = pygame.FRect(self.dimensions[0]*.6953,self.dimensions[1]*.8472,200,100)
         pygame.draw.rect(self.display_surface,COLORS['white'],self.start_button_rect,0,4)
         pygame.draw.rect(self.display_surface,COLORS['gray'],self.start_button_rect,4,4)
         start_button_font = pygame.font.Font(FONT_FILE,20)
@@ -116,16 +141,16 @@ class Game:
         self.display_surface.fill(COLORS['table_1'])
 
         section_font = pygame.font.Font(FONT_FILE,70)
-        rect = self.player_1_rect = pygame.FRect(WINDOW_WIDTH/2-475,0,150,180)
+        rect = pygame.FRect(self.dimensions[0]*.1289,0,150,180)
         players_section_surf = section_font.render('Players',True,COLORS['white'])
         players_section_rect = players_section_surf.get_frect(center=rect.center)
         self.display_surface.blit(players_section_surf,players_section_rect)
 
         #Add Players
         caption_font = pygame.font.Font(FONT_FILE,20)
-        self.player_1_rect = pygame.FRect(WINDOW_WIDTH/2-510,150,220,100)
-        self.player_2_rect = pygame.FRect(WINDOW_WIDTH/2-110,150,220,100)
-        self.player_3_rect = pygame.FRect(WINDOW_WIDTH/2+290,150,220,100)        
+        self.player_1_rect = pygame.FRect(self.dimensions[0]*.102,self.dimensions[1]*.208,220,100)
+        self.player_2_rect = pygame.FRect(self.dimensions[0]*.414,self.dimensions[1]*.208,220,100)
+        self.player_3_rect = pygame.FRect(self.dimensions[0]*.727,self.dimensions[1]*.208,220,100)        
 
         #player rects will be white if not clicked, green when clicked
         #player 1
@@ -134,7 +159,7 @@ class Game:
             player_1_name_surf = caption_font.render('+',True,COLORS['black'])
         else:
             pygame.draw.rect(self.display_surface,COLORS['green'],self.player_1_rect,0,4)
-            player_1_name_surf = caption_font.render(self.name_1,True,COLORS['black'])
+            player_1_name_surf = caption_font.render(self.player_1.name,True,COLORS['black'])
         pygame.draw.rect(self.display_surface,COLORS['gray'],self.player_1_rect,4,4)
         player_1_name_rect = player_1_name_surf.get_frect(center=self.player_1_rect.center)
         self.display_surface.blit(player_1_name_surf,player_1_name_rect)
@@ -145,7 +170,7 @@ class Game:
             player_2_name_surf = caption_font.render('+',True,COLORS['black'])
         else:
             pygame.draw.rect(self.display_surface,COLORS['green'],self.player_2_rect,0,4)
-            player_2_name_surf = caption_font.render(self.name_2,True,COLORS['black'])
+            player_2_name_surf = caption_font.render(self.player_2.name,True,COLORS['black'])
         pygame.draw.rect(self.display_surface,COLORS['gray'],self.player_2_rect,4,4)
         player_2_name_rect = player_2_name_surf.get_frect(center=self.player_2_rect.center)
         self.display_surface.blit(player_2_name_surf,player_2_name_rect)
@@ -156,23 +181,23 @@ class Game:
             player_3_name_surf = caption_font.render('+',True,COLORS['black'])
         else:
             pygame.draw.rect(self.display_surface,COLORS['green'],self.player_3_rect,0,4)
-            player_3_name_surf = caption_font.render(self.name_3,True,COLORS['black'])
+            player_3_name_surf = caption_font.render(self.player_3.name,True,COLORS['black'])
         pygame.draw.rect(self.display_surface,COLORS['gray'],self.player_3_rect,4,4)
         player_3_name_rect = player_3_name_surf.get_frect(center=self.player_3_rect.center)
         self.display_surface.blit(player_3_name_surf,player_3_name_rect)
 
         #table
         #the selected table will be highlighted green
-        rect = pygame.FRect(WINDOW_WIDTH/2-475,250,150,180)
+        rect = pygame.FRect(self.dimensions[0]*.1289,self.dimensions[1]*.347,150,180)
         tables_section_surf = section_font.render('Table',True,COLORS['white'])
         tables_section_rect = tables_section_surf.get_frect(center=rect.center)
         self.display_surface.blit(tables_section_surf,tables_section_rect)
 
-        self.table_1_rect = pygame.FRect(WINDOW_WIDTH/2-600,WINDOW_HEIGHT/2+50,220,100)
-        self.table_2_rect = pygame.FRect(WINDOW_WIDTH/2-355,WINDOW_HEIGHT/2+50,220,100)
-        self.table_3_rect = pygame.FRect(WINDOW_WIDTH/2-110,WINDOW_HEIGHT/2+50,220,100) 
-        self.table_4_rect = pygame.FRect(WINDOW_WIDTH/2+135,WINDOW_HEIGHT/2+50,220,100) 
-        self.table_5_rect = pygame.FRect(WINDOW_WIDTH/2+380,WINDOW_HEIGHT/2+50,220,100) 
+        self.table_1_rect = pygame.FRect(self.dimensions[0]*.0313,self.dimensions[1]*.569,220,100)
+        self.table_2_rect = pygame.FRect(self.dimensions[0]*.223,self.dimensions[1]*.569,220,100)
+        self.table_3_rect = pygame.FRect(self.dimensions[0]*.414,self.dimensions[1]*.569,220,100) 
+        self.table_4_rect = pygame.FRect(self.dimensions[0]*.605,self.dimensions[1]*.569,220,100) 
+        self.table_5_rect = pygame.FRect(self.dimensions[0]*.797,self.dimensions[1]*.569,220,100) 
 
         #table 1
         if self.table==0:
@@ -225,7 +250,7 @@ class Game:
         self.display_surface.blit(table_5_name_surf,table_5_name_rect)
 
         #audio
-        self.audio_rect = pygame.FRect(WINDOW_WIDTH/2-550,WINDOW_HEIGHT-120,150,100)
+        self.audio_rect = pygame.FRect(self.dimensions[0]*.07,self.dimensions[1]*.833,150,100)
         if self.do_sounds==True:
             pygame.draw.rect(self.display_surface,COLORS['green'],self.audio_rect,0,4)
         else:
@@ -236,7 +261,7 @@ class Game:
         self.display_surface.blit( audio_surf, audio_rect)
 
         #count
-        self.init_count_rect = pygame.FRect(WINDOW_WIDTH/2-375,WINDOW_HEIGHT-120,150,100)
+        self.init_count_rect = pygame.FRect(self.dimensions[0]*.207,self.dimensions[1]*.833,150,100)
         if self.do_count==True:
             pygame.draw.rect(self.display_surface,COLORS['green'],self.init_count_rect,0,4)
         else:
@@ -247,7 +272,7 @@ class Game:
         self.display_surface.blit( init_count_surf, init_count_rect)
 
         #totals
-        self.total_rect = pygame.FRect(WINDOW_WIDTH/2-200,WINDOW_HEIGHT-120,150,100)
+        self.total_rect = pygame.FRect(self.dimensions[0]*.344,self.dimensions[1]*.833,150,100)
         if self.do_total==True:
             pygame.draw.rect(self.display_surface,COLORS['green'],self.total_rect,0,4)
         else:
@@ -258,7 +283,7 @@ class Game:
         self.display_surface.blit( total_surf, total_rect)
 
         #shoe
-        self.shoe_rect = pygame.FRect(WINDOW_WIDTH/2-25,WINDOW_HEIGHT-120,150,100)
+        self.shoe_rect = pygame.FRect(self.dimensions[0]*.48,self.dimensions[1]*.833,150,100)
         pygame.draw.rect(self.display_surface,COLORS['white'],self.shoe_rect,0,4)
         pygame.draw.rect(self.display_surface,COLORS['gray'],self.shoe_rect,4,4)
         num_decks_surf = caption_font.render(f'{self.num_decks}',True,COLORS['black'])
@@ -269,7 +294,7 @@ class Game:
         self.display_surface.blit( num_decks_label_surf, num_decks_label_rect)
 
         #start button
-        self.start_button_rect = pygame.FRect(WINDOW_WIDTH/2+250,WINDOW_HEIGHT-120,200,100)
+        self.start_button_rect = pygame.FRect(self.dimensions[0]*.695,self.dimensions[1]*.833,200,100)
         pygame.draw.rect(self.display_surface,COLORS['gold'],self.start_button_rect,0,4)
         pygame.draw.rect(self.display_surface,COLORS['gray'],self.start_button_rect,4,4)
         start_button_words_surf = caption_font.render('Click to Start',True,COLORS['black'])
@@ -280,10 +305,13 @@ class Game:
     def check_initializer(self):
         mouse_pos = pygame.mouse.get_pos()
         if pygame.mouse.get_just_pressed()[0] and self.player_1_rect.collidepoint(mouse_pos): #player 1
+            self.player_1.name = choice(self.names)
             self.player_1_state = not self.player_1_state
         elif pygame.mouse.get_just_pressed()[0] and self.player_2_rect.collidepoint(mouse_pos): #player 2
+            self.player_2.name = choice(self.names)
             self.player_2_state = not self.player_2_state
         elif pygame.mouse.get_just_pressed()[0] and self.player_3_rect.collidepoint(mouse_pos): #player 3
+            self.player_3.name = choice(self.names)
             self.player_3_state = not self.player_3_state
 
         elif pygame.mouse.get_just_pressed()[0] and self.table_1_rect.collidepoint(mouse_pos): #table 1
@@ -346,7 +374,8 @@ class Game:
                 table_surf = self.table_surfs[4]
                 color = COLORS['table_5']     
 
-        self.display_surface.fill(color)        
+        self.table_rect.center = (self.dimensions[0]*.5,self.dimensions[1]*.361)
+        self.display_surface.fill(color)       
         self.display_surface.blit(table_surf,self.table_rect)
 
     #draws the current bet on each hand
@@ -373,7 +402,7 @@ class Game:
                     self.display_surface.blit(total_surf,total_rect)
         
         #draw dealer total
-        dealer_rect = pygame.FRect((WINDOW_WIDTH/2-15,0),(30,23))
+        dealer_rect = pygame.FRect((self.dimensions[0]*.488,0),(30,23))
         if self.do_total and self.dealer.total>0 and (not self.dealer_deal_timer and not self.flip_timer):
             pygame.draw.rect(self.display_surface,COLORS['white'],dealer_rect,border_radius=3)
             pygame.draw.rect(self.display_surface,COLORS['gray'],dealer_rect,3,3)
@@ -405,19 +434,19 @@ class Game:
 
     #displays the result (win,push,loss) for each hand and how much was won or lost
     def draw_result(self):
-        rect = pygame.FRect(WINDOW_WIDTH/2-150,WINDOW_HEIGHT/2-50,300,100)
+        rect = pygame.FRect(self.dimensions[0]*.383,self.dimensions[1]*.431,self.dimensions[0]*.234,self.dimensions[1]*.139)
         pygame.draw.rect(self.display_surface,COLORS['white'],rect,0,4)
         pygame.draw.rect(self.display_surface,COLORS['gray'],rect,4,4)
         font = pygame.font.Font(FONT_FILE,40)
 
         #Player name
-        name_pos = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2-25)
+        name_pos = (self.dimensions[0]*.5,self.dimensions[1]*.465)
         name_surf = font.render(f'{self.players[self.player_index].name}',True,'black')
         name_rect = name_surf.get_frect(center = name_pos)
         self.display_surface.blit(name_surf,name_rect)
 
         #result
-        money_pos = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2+25)
+        money_pos = (self.dimensions[0]*.5,self.dimensions[1]*.535)
         if self.current_result>0: money_surf = font.render(f'Win ${self.current_result}',True,'green') #win
         elif self.current_result==0: money_surf = font.render(f'Push',True,COLORS['gray']) #push
         else: money_surf = font.render(f'Lose ${-self.current_result}',True,COLORS['red']) #lose
@@ -458,13 +487,12 @@ class Game:
     #gets the starting position on the screen for each player. Changes based on how many players there are
     def get_card_positions(self):
         #positioning of cards
-        self.dealer_pos = pygame.Vector2(WINDOW_WIDTH/2-self.card_width,150)
-        bottom_buffer = 100 #bottom y position of first card dealt to the middle player (pos 3 of 5)
-        start_pos = pygame.Vector2(WINDOW_WIDTH/2,WINDOW_HEIGHT-bottom_buffer) #position of the middle player
+        self.dealer_pos = pygame.Vector2(self.dimensions[0]*.5-self.card_width,self.dimensions[1]*.208)
+        start_pos = pygame.Vector2(self.dimensions[0]*.5,self.dimensions[1]*.861) #position of the middle player
 
         self.placements = {} #hold vectors of player positions based on index
-        x = WINDOW_WIDTH/3.5 #x offset from player position 2 (directly below dealer)
-        y = -50 #y offset from player position 2
+        x = self.dimensions[0]*.286 #x offset from player position 2 (directly below dealer)
+        y = -self.dimensions[1]*.069 #y offset from player position 2
 
         if len(self.players)%2==0: #%2 comes from the fact that an even number of players will have 2 bottom players (largest y value) while an odd number will only have 1
             start_pos -= pygame.Vector2(x/2,0)
@@ -473,14 +501,14 @@ class Game:
                     y=0
                     self.placements[i] = start_pos + (int(len(self.players)/2)-i)*pygame.Vector2(x,y)
                 elif len(self.players)/2-i < 0: #left player
-                    y=50
+                    y=self.dimensions[1]*.069
                     self.placements[i] = start_pos + (int(len(self.players)/2)-i)*pygame.Vector2(x,y)
                 else: #right player
                     y*=(int(len(self.players)/2)-i-1)/(int(len(self.players)/2)-i)
                     self.placements[i] = start_pos + (int(len(self.players)/2)-i)*pygame.Vector2(x,y)
         else:
             for i in range(len(self.players)):
-                if int(len(self.players)/2)-i < 0: y=50
+                if int(len(self.players)/2)-i < 0: y = self.dimensions[1]*.069
                 self.placements[i] = start_pos + (int(len(self.players)/2)-i)*pygame.Vector2(x,y)
 
     #adds offset for when a player has split and has multiple hands
@@ -562,7 +590,7 @@ class Game:
                 self.shoe.reset(self.card_surfs,self.num_decks)
                 self.audio['shuffle'].play()
                 self.running_count = 0
-            rect = pygame.FRect(WINDOW_WIDTH/2-150,WINDOW_HEIGHT/2-50,300,100)
+            rect = pygame.FRect(self.dimensions[0]*.383,self.dimensions[1]*.43,300,100)
             pygame.draw.rect(self.display_surface,COLORS['white'],rect,0,4)
             pygame.draw.rect(self.display_surface,COLORS['gray'],rect,4,4)
             font = pygame.font.Font(FONT_FILE,40)
@@ -823,8 +851,8 @@ class Game:
     #restarts the game from the start screen
     def restart(self):
         self.audio['ambience'].stop()
-        self.__init__()
-        self.game_state = 'initialize'
+        if self.fullscreen: self.__init__(True)
+        else: self.__init__()
 
 #Functions triggered by timers
     #adds a card to the player_card_sprites
@@ -870,7 +898,18 @@ class Game:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_f and (self.game_state == 'start' or self.game_state == 'init' or (self.game_state == 'play' and self.stage=='bet')): #The second condition makes it so that fullscreen can't be toggled when cards are being dealt
+                        self.fullscreen = not self.fullscreen
+                        if self.fullscreen: self.display_surface = pygame.display.set_mode((0,0),pygame.FULLSCREEN)
+                        else: self.display_surface = pygame.display.set_mode((DEFAULT_WINDOW_WIDTH,DEFAULT_WINDOW_HEIGHT))
+                        self.dimensions = self.display_surface.get_size()    
+                        if self.fullscreen_dimensions == (0,0) and self.fullscreen: self.fullscreen_dimensions = self.dimensions      
+                        self.get_card_positions() #reset player positions       
+                    elif event.key == pygame.K_ESCAPE and self.game_state=='start':
+                        self.running = False                  
 
+            #playing screen
             if self.game_state == 'play':
                 self.draw_table()
                 self.get_stage() #calls appropriate functions based on self.stage
@@ -885,14 +924,18 @@ class Game:
                 if self.result_timer and self.player_index>=0:
                     self.draw_result()
 
-                self.ui.update(self.player_index)
+                self.ui.update(self.player_index,self.dimensions)
                 for timer in self.timers:
                     timer.update()
                 if self.ui.return_home: self.restart()
-            elif self.game_state == 'init': #initializer screen
+
+            #initializer screen
+            elif self.game_state == 'init': 
                 self.draw_initializer()
                 self.check_initializer()
-            else: #start screen
+
+            #start screen
+            else: 
                 self.draw_start_screen()
                 self.check_start()
             pygame.display.update()

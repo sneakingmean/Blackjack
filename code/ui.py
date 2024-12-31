@@ -10,6 +10,7 @@ class UI:
         self.display_surface = display_surface
         self.players = players #list of all the players
         self.player_index = player_index
+        self.dimensions = (DEFAULT_WINDOW_WIDTH,DEFAULT_WINDOW_HEIGHT) #same function as in main
 
         #bet ui
         self.chip_surfs = chip_surfs
@@ -172,14 +173,14 @@ class UI:
         player = self.players[self.player_index]
 
         #draw ui for placing bet
-        rect = pygame.FRect(WINDOW_WIDTH/2-300,WINDOW_HEIGHT/2-200,600,400)
+        rect = pygame.FRect(self.dimensions[0]*.266,self.dimensions[1]*.222,self.dimensions[0]*.469,self.dimensions[1]*.556)
         pygame.draw.rect(self.display_surface,COLORS['white'],rect,0,50)
         pygame.draw.rect(self.display_surface,COLORS['gray'],rect,4,50)
         font = pygame.font.Font(FONT_FILE,40)
         small_font = pygame.font.Font(FONT_FILE,30)
 
         #Table min and max
-        min_pos = (WINDOW_WIDTH/2-230,WINDOW_HEIGHT/2-160)
+        min_pos = (self.dimensions[0]*.32,self.dimensions[1]*.278)
         min_surf_1 = small_font.render('Min',True,COLORS['black'])
         min_surf_2 = small_font.render(f'${self.table_min}',True,COLORS['table_1'])
         min_rect_1 = min_surf_1.get_frect(center = min_pos)
@@ -187,7 +188,7 @@ class UI:
         self.display_surface.blit(min_surf_1,min_rect_1)
         self.display_surface.blit(min_surf_2,min_rect_2)
 
-        max_pos = (WINDOW_WIDTH/2+230,WINDOW_HEIGHT/2-160)
+        max_pos = (self.dimensions[0]*.68,self.dimensions[1]*.278)
         max_surf_1 = small_font.render('Max',True,COLORS['black'])
         max_surf_2 = small_font.render(f'${self.table_max}',True,COLORS['table_1'])
         max_rect_1 = max_surf_1.get_frect(center = max_pos)
@@ -196,13 +197,13 @@ class UI:
         self.display_surface.blit(max_surf_2,max_rect_2)
 
         #Player name
-        name_pos = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2-150)
+        name_pos = (self.dimensions[0]*.5,self.dimensions[1]*.292)
         name_surf = font.render(f'Player: {player.name}',True,'black')
         name_rect = name_surf.get_frect(center = name_pos)
         self.display_surface.blit(name_surf,name_rect)
 
         #bankroll
-        money_pos = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2-110)
+        money_pos = (self.dimensions[0]*.5,self.dimensions[1]*.347)
         money_surf = font.render(f'${player.money}',True,COLORS['table_1'])
         money_rect = money_surf.get_frect(center = money_pos)
         self.display_surface.blit(money_surf,money_rect)
@@ -210,7 +211,7 @@ class UI:
         #Draw all chips
         spacing = rect.width/(len(self.chip_values))
         chip_font = pygame.font.Font(FONT_FILE,15)
-        chip_pos = [(12+rect.left+spacing*i,WINDOW_HEIGHT/2-10) for i in range(len(self.chip_values))]
+        chip_pos = [(12+rect.left+spacing*i,self.dimensions[1]*.486) for i in range(len(self.chip_values))]
         self.chips = {} #self used so that input can recognize clicks on chips
         for i,val in enumerate(self.chip_values):
             self.chips[val] = self.chip_surfs[val],self.chip_surfs[val].get_frect(bottomleft=chip_pos[i])
@@ -220,23 +221,23 @@ class UI:
             self.display_surface.blit(chip_val_surf,chip_val_rect)
             
         #bet caption
-        bet_pos = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2+25)
+        bet_pos = (self.dimensions[0]*.5,self.dimensions[1]*.535)
         bet_surf = font.render('Click Chips to Change Bet',True,'black')
         bet_rect = bet_surf.get_frect(center = bet_pos)
         self.display_surface.blit(bet_surf,bet_rect)
-        bet_caption_pos = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2+60)
+        bet_caption_pos = (self.dimensions[0]*.5,self.dimensions[1]*.583)
         bet_caption_surf = small_font.render('Press Space or R-Click to Enter Bet',True,'black')
         bet_caption_rect = bet_caption_surf.get_frect(center = bet_caption_pos)
         self.display_surface.blit(bet_caption_surf,bet_caption_rect)
 
         #bet amount
-        bet_amount_pos = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2+100)
+        bet_amount_pos = (self.dimensions[0]*.5,self.dimensions[1]*.639)
         bet_amount_surf = font.render(f'{self.bet}',True,'black')
         bet_amount_rect = bet_amount_surf.get_frect(center = bet_amount_pos)
         self.display_surface.blit(bet_amount_surf,bet_amount_rect)
 
         #Table min and max quick select buttons
-        min_bet_pos = (WINDOW_WIDTH/2-230,rect.bottom-40)
+        min_bet_pos = (self.dimensions[0]*.32,rect.bottom-self.dimensions[1]*.0556)
         min_bet_surf = small_font.render('Min',True,COLORS['black'])
         min_bet_rect = min_bet_surf.get_frect(center = min_bet_pos)
         self.min_bet_rect_hitbox = min_bet_rect.scale_by(1.2)
@@ -244,7 +245,7 @@ class UI:
         pygame.draw.rect(self.display_surface,COLORS['green'],self.min_bet_rect_hitbox,4,4)
 
         #Table min and max quick select buttons
-        max_bet_pos = (WINDOW_WIDTH/2+230,rect.bottom-40)
+        max_bet_pos = (self.dimensions[0]*.68,rect.bottom-self.dimensions[1]*.0556)
         max_bet_surf = small_font.render('Max',True,COLORS['black'])
         max_bet_rect = max_bet_surf.get_frect(center = max_bet_pos)
         self.max_bet_rect_hitbox = max_bet_rect.scale_by(1.2)
@@ -252,7 +253,7 @@ class UI:
         pygame.draw.rect(self.display_surface,COLORS['green'],self.max_bet_rect_hitbox,4,4)
 
         #reset
-        reset_pos = (WINDOW_WIDTH/2,rect.bottom-40)
+        reset_pos = (self.dimensions[0]*.5,rect.bottom-self.dimensions[1]*.0556)
         reset_surf = font.render('Reset',True,'black')
         reset_rect = reset_surf.get_frect(center = reset_pos)
         self.reset_rect_hitbox = reset_rect.scale_by(1.1)
@@ -272,25 +273,25 @@ class UI:
         player = self.players[self.player_index]
 
         #draw ui for placing bet
-        rect = pygame.FRect(WINDOW_WIDTH/2-150,WINDOW_HEIGHT/2-75,300,150)
+        rect = pygame.FRect(self.dimensions[0]*.383,self.dimensions[1]*.396,self.dimensions[0]*.234,self.dimensions[1]*.208)
         pygame.draw.rect(self.display_surface,COLORS['white'],rect,0,4)
         pygame.draw.rect(self.display_surface,COLORS['gray'],rect,4,4)
         font = pygame.font.Font(FONT_FILE,30)
 
         #Player name
-        name_pos = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2-50)
+        name_pos = (self.dimensions[0]*.5,self.dimensions[1]*.431)
         name_surf = font.render(f'{self.players[self.player_index].name}',True,'black')
         name_rect = name_surf.get_frect(center = name_pos)
         self.display_surface.blit(name_surf,name_rect)
 
         #insurance
-        insurance_pos = (WINDOW_WIDTH/2,WINDOW_HEIGHT/2)
+        insurance_pos = (self.dimensions[0]*.5,self.dimensions[1]*.5)
         insurance_surf = font.render('Insurance?',True,'black')
         insurance_rect = insurance_surf.get_frect(center = insurance_pos)
         self.display_surface.blit(insurance_surf,insurance_rect)
 
         #yes
-        yes_pos = (WINDOW_WIDTH/2-50,WINDOW_HEIGHT/2+45)
+        yes_pos = (self.dimensions[0]*.461,self.dimensions[1]*.563)
         yes_surf = font.render('Yes',True,'black')
         yes_rect = yes_surf.get_frect(center = yes_pos)
         self.yes_rect_hitbox = yes_rect.scale_by(1.1)
@@ -300,7 +301,7 @@ class UI:
         self.display_surface.blit(yes_surf,yes_rect)
 
         #no
-        no_pos = (WINDOW_WIDTH/2+50,WINDOW_HEIGHT/2+45)
+        no_pos = (self.dimensions[0]*.54,self.dimensions[1]*.563)
         no_surf = font.render('No',True,'black')
         no_rect = no_surf.get_frect(center = no_pos)
         self.no_rect_hitbox = no_rect.scale_by(1.1)
@@ -316,24 +317,24 @@ class UI:
         if not self.help_open and not self.rules_open:
             font = pygame.font.Font(FONT_FILE,20)
 
-            #small window that will open if pressed for more details on hitting
-            self.help_rect = pygame.FRect(WINDOW_WIDTH-100,0,100,100)
+            #small DEFAULT_WINDOW that will open if pressed for more details on hitting
+            self.help_rect = pygame.FRect(self.dimensions[0]*.922,0,self.dimensions[0]*.078,self.dimensions[1]*.139)
             pygame.draw.rect(self.display_surface,COLORS['white'],self.help_rect,0,4)
             pygame.draw.rect(self.display_surface,COLORS['gray'],self.help_rect,4,4)
             help_surf = font.render('Help',True,'black')
             help_rect = help_surf.get_frect(center = self.help_rect.center)
             self.display_surface.blit(help_surf,help_rect)
 
-            #small window that will open if pressed for more details on the rules. Positioned below help
-            self.rules_rect = pygame.FRect(WINDOW_WIDTH-100,100,100,100)
+            #small DEFAULT_WINDOW that will open if pressed for more details on the rules. Positioned below help
+            self.rules_rect = pygame.FRect(self.dimensions[0]*.922,self.dimensions[1]*.139,self.dimensions[0]*.078,self.dimensions[1]*.139)
             pygame.draw.rect(self.display_surface,COLORS['white'],self.rules_rect,0,4)
             pygame.draw.rect(self.display_surface,COLORS['gray'],self.rules_rect,4,4)
             rules_surf = font.render('Rules',True,'black')
             rules_rect = rules_surf.get_frect(center = self.rules_rect.center)
             self.display_surface.blit(rules_surf,rules_rect)
 
-            #window for restarting the game
-            self.home_rect = pygame.FRect(WINDOW_WIDTH-100,200,100,100)
+            #DEFAULT_WINDOW for restarting the game
+            self.home_rect = pygame.FRect(self.dimensions[0]*.922,self.dimensions[1]*.277,self.dimensions[0]*.078,self.dimensions[1]*.139)
             pygame.draw.rect(self.display_surface,COLORS['white'],self.home_rect,0,4)
             pygame.draw.rect(self.display_surface,COLORS['gray'],self.home_rect,4,4)
             home_surf = font.render('  Start\nScreen',True,'black')
@@ -342,7 +343,7 @@ class UI:
 
         elif self.help_open:
             #controls screen
-            rect = pygame.FRect(WINDOW_WIDTH/2-300,WINDOW_HEIGHT/2-200,600,400)
+            rect = pygame.FRect(self.dimensions[0]*.266,self.dimensions[1]*.222,self.dimensions[0]*.469,self.dimensions[1]*.556)
             pygame.draw.rect(self.display_surface,COLORS['white'],rect,0,4)
             pygame.draw.rect(self.display_surface,COLORS['gray'],rect,4,4)
             font = pygame.font.Font(FONT_FILE,20)
@@ -365,7 +366,7 @@ class UI:
 
         elif self.rules_open:
             #rules screen
-            rect = pygame.FRect(WINDOW_WIDTH/2-300,WINDOW_HEIGHT/2-200,600,400)
+            rect = pygame.FRect(self.dimensions[0]*.266,self.dimensions[1]*.222,self.dimensions[0]*.469,self.dimensions[1]*.556)
             pygame.draw.rect(self.display_surface,COLORS['white'],rect,0,4)
             pygame.draw.rect(self.display_surface,COLORS['gray'],rect,4,4)
             font = pygame.font.Font(FONT_FILE,20)
@@ -389,8 +390,9 @@ Betting
             self.close_rules_rect = close_rules_surf.get_frect(topright = rect.move(-5,5).topright)
             self.display_surface.blit(close_rules_surf,self.close_rules_rect)
 
-    def update(self,player_index):
+    def update(self,player_index,dimensions):
         self.player_index = player_index
+        self.dimensions = dimensions
         if self.state == 'bet':
             self.bet_ui()
             self.input()
